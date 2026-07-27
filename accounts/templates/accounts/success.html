@@ -1,0 +1,22 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}
+    Success | Analyst Task Tracker
+{% endblock %}
+
+{% block content %}
+    <h1>Login successful</h1>
+
+    <div class="user-info">
+        You are logged in as
+        <strong>{{ request.user.login }}</strong>.
+    </div>
+
+    <p class="message">
+        Your Django session is active.
+    </p>
+
+    <a class="button secondary" href="{% url 'accounts:logout' %}">
+        Log out
+    </a>
+{% endblock %}

@@ -78,3 +78,26 @@ class UserChangeForm(forms.ModelForm):
 
     def clean_password(self) -> str:
         return self.initial["password"]
+
+
+class LoginForm(forms.Form):
+    login = forms.CharField(
+        label="Login",
+        max_length=150,
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "Enter login",
+                "autocomplete": "username",
+            }
+        ),
+    )
+
+    password = forms.CharField(
+        label="Password",
+        widget=forms.PasswordInput(
+            attrs={
+                "placeholder": "Enter password",
+                "autocomplete": "current-password",
+            }
+        ),
+    )

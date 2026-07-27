@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        {% block title %}Analyst Task Tracker{% endblock %}
+    </title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #202124;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 420px;
+            padding: 32px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            margin-top: 0;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid #c8cdd2;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        input:focus {
+            border-color: #2563eb;
+            outline: none;
+        }
+
+        button,
+        .button {
+            display: inline-block;
+            width: 100%;
+            padding: 11px 16px;
+            border: none;
+            border-radius: 6px;
+            background: #2563eb;
+            color: white;
+            font-size: 16px;
+            text-align: center;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        button:hover,
+        .button:hover {
+            background: #1d4ed8;
+        }
+
+        .secondary {
+            background: #64748b;
+        }
+
+        .secondary:hover {
+            background: #475569;
+        }
+
+        .error-list {
+            margin: 0 0 18px;
+            padding: 12px 16px;
+            border-radius: 6px;
+            background: #fee2e2;
+            color: #991b1b;
+            list-style-position: inside;
+        }
+
+        .message {
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .user-info {
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            background: #eff6ff;
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="card">
+        {% block content %}
+        {% endblock %}
+    </main>
+</body>
+</html>

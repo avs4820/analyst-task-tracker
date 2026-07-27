@@ -1,0 +1,17 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}
+    Not Authorized | Analyst Task Tracker
+{% endblock %}
+
+{% block content %}
+    <h1>Not Authorized</h1>
+
+    <p class="message">
+        You must be logged in to access this page.
+    </p>
+
+    <a class="button" href="{% url 'accounts:login' %}">
+        Go to login
+    </a>
+{% endblock %}
