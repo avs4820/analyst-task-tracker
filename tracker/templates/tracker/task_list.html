@@ -1,0 +1,1731 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <title>Список задач</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            color: #1f2937;
+            background: #f3f4f6;
+        }
+
+        button,
+        textarea,
+        input {
+            font: inherit;
+        }
+
+        .page {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 1440px;
+            height: 100vh;
+            margin: 0 auto;
+            padding: 28px 28px 0;
+            overflow: hidden;
+        }
+
+        .page-top {
+            flex: 0 0 auto;
+            position: relative;
+            z-index: 10;
+            background: #f3f4f6;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            margin: 0 0 8px;
+            font-size: 30px;
+        }
+
+        .page-subtitle {
+            display: none;
+            margin: 0;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .primary-button,
+        .secondary-button,
+        .icon-button,
+        .text-button,
+        .status-action,
+        .week-nav-button {
+            border: 0;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .primary-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 11px 18px;
+            border-radius: 8px;
+            color: #fff;
+            background: #2563eb;
+        }
+
+        .primary-button:hover {
+            background: #1d4ed8;
+        }
+
+        .secondary-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            color: #374151;
+            background: #fff;
+        }
+
+        .secondary-button:hover {
+            background: #f9fafb;
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .toolbar input {
+            flex: 1;
+            min-width: 220px;
+            padding: 11px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .list-controls {
+            display: grid;
+            grid-template-columns:
+                minmax(310px, 0.92fr)
+                minmax(620px, 1.65fr);
+            margin-bottom: 12px;
+        }
+
+        .history-toolbar {
+            grid-column: 2;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-width: 0;
+        }
+
+        .history-toolbar-inner {
+            grid-column: 1;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            padding: 0 18px;
+        }
+
+        .history-week-date {
+            color: #374151;
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .week-nav-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 7px;
+            color: #374151;
+            background: #fff;
+        }
+
+        .week-nav-button:hover {
+            background: #f9fafb;
+        }
+
+        .week-nav-button.disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .tasks-scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0 4px 28px 0;
+            scrollbar-gutter: stable;
+        }
+
+        .tasks {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .task-shell {
+            overflow: hidden;
+            border: 1px solid #dfe3e8;
+            border-radius: 14px;
+            background: #fff;
+            box-shadow: 0 5px 16px rgba(15, 23, 42, 0.05);
+        }
+
+        .task-row {
+            display: grid;
+            grid-template-columns:
+                minmax(310px, 0.92fr)
+                minmax(620px, 1.65fr);
+            align-items: stretch;
+        }
+
+        .task-card {
+            padding: 18px;
+            border-right: 1px solid #e5e7eb;
+            background: #fff;
+        }
+
+        .task-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .task-project {
+            margin-bottom: 7px;
+            color: #6b7280;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .task-link,
+        .task-number {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 9px;
+            color: #2563eb;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .task-link:hover {
+            text-decoration: underline;
+        }
+
+        .task-description {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.42;
+        }
+
+        .icon-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            flex: 0 0 auto;
+            border-radius: 8px;
+            color: #4b5563;
+            background: #f3f4f6;
+        }
+
+        .icon-button:hover {
+            background: #e5e7eb;
+        }
+
+        .task-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 27px;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .badge-status {
+            color: #92400e;
+            background: #fef3c7;
+        }
+
+        .badge-assignee {
+            color: #374151;
+            background: #f3f4f6;
+        }
+
+        .artifacts-section {
+            padding-top: 14px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .section-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .section-label {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .text-button {
+            padding: 0;
+            color: #2563eb;
+            background: transparent;
+            font-size: 13px;
+        }
+
+        .text-button:hover {
+            text-decoration: underline;
+        }
+
+        .artifact-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px 12px;
+        }
+
+        .artifact-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .artifact-item a {
+            max-width: 220px;
+            overflow: hidden;
+            color: #2563eb;
+            font-size: 13px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-decoration: none;
+        }
+
+        .artifact-item a:hover {
+            text-decoration: underline;
+        }
+
+        .artifact-empty {
+            color: #9ca3af;
+            font-size: 13px;
+            font-style: italic;
+        }
+
+        .artifact-delete-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            color: #9ca3af;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        .artifact-delete-button:hover {
+            color: #b91c1c;
+            background: #fee2e2;
+        }
+
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.45);
+        }
+
+        .modal-backdrop.open {
+            display: flex;
+        }
+
+        .modal {
+            width: 100%;
+            max-width: 460px;
+            border-radius: 14px;
+            background: #fff;
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 18px 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .modal-close {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            border: 0;
+            border-radius: 8px;
+            color: #6b7280;
+            background: transparent;
+            cursor: pointer;
+            font-size: 22px;
+        }
+
+        .modal-close:hover {
+            background: #f3f4f6;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-field {
+            margin-bottom: 16px;
+        }
+
+        .modal-field label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .modal-field input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        .modal-field input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .modal-error {
+            min-height: 18px;
+            margin-top: 6px;
+            color: #b91c1c;
+            font-size: 12px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 0 20px 20px;
+        }
+
+        .danger-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 11px 18px;
+            border: 0;
+            border-radius: 8px;
+            color: #fff;
+            background: #dc2626;
+            cursor: pointer;
+        }
+
+        .danger-button:hover {
+            background: #b91c1c;
+        }
+
+        .danger-button:disabled {
+            opacity: 0.65;
+            cursor: wait;
+        }
+
+        .confirmation-text {
+            margin: 0;
+            color: #374151;
+            line-height: 1.55;
+        }
+
+        .confirmation-artifact-name {
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        .weekly-board {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            background: #fff;
+        }
+
+        .week-column {
+            min-width: 0;
+            padding: 18px;
+        }
+
+        .week-column + .week-column {
+            border-left: 1px solid #e5e7eb;
+        }
+
+        .week-column.previous {
+            background: #fafafa;
+        }
+
+        .week-heading {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 13px;
+        }
+
+        .week-kicker {
+            margin-bottom: 4px;
+            color: #6b7280;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .week-title {
+            margin: 0;
+            font-size: 17px;
+        }
+
+        .week-date {
+            color: #6b7280;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .status-text {
+            min-height: 128px;
+            margin: 0 0 14px;
+            color: #374151;
+            line-height: 1.55;
+            white-space: pre-line;
+        }
+
+        .status-empty {
+            color: #9ca3af;
+            font-style: italic;
+        }
+
+        .status-editor {
+            display: none;
+        }
+
+        .status-editor.open {
+            display: block;
+        }
+
+        .status-editor textarea {
+            width: 100%;
+            min-height: 128px;
+            resize: vertical;
+            padding: 11px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        .status-editor textarea:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .status-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-action {
+            padding: 8px 12px;
+            border-radius: 7px;
+        }
+
+        .status-action.save {
+            color: #fff;
+            background: #2563eb;
+        }
+
+        .status-action.cancel {
+            color: #374151;
+            background: #e5e7eb;
+        }
+
+        .status-action.edit {
+            color: #2563eb;
+            background: #eff6ff;
+        }
+
+        .status-hint {
+            margin-top: 10px;
+            color: #9ca3af;
+            font-size: 12px;
+        }
+
+        .form-errors {
+            margin: 0 0 10px;
+            color: #b91c1c;
+            font-size: 13px;
+        }
+
+        .empty-message {
+            padding: 40px;
+            border: 1px solid #dfe3e8;
+            border-radius: 14px;
+            color: #6b7280;
+            background: #fff;
+            text-align: center;
+        }
+
+        @media (max-width: 980px) {
+            .list-controls {
+                grid-template-columns: 1fr;
+            }
+
+            .history-toolbar {
+                grid-column: 1;
+                grid-template-columns: 1fr;
+            }
+
+            .history-toolbar-inner {
+                grid-column: 1;
+                padding: 0;
+            }
+
+            .task-row {
+                grid-template-columns: 1fr;
+            }
+
+            .task-card {
+                border-right: 0;
+                border-bottom: 1px solid #e5e7eb;
+            }
+        }
+
+        @media (max-width: 680px) {
+            .page {
+                padding: 18px 18px 0;
+            }
+
+            .page-header {
+                flex-direction: column;
+            }
+
+            .toolbar {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .weekly-board {
+                grid-template-columns: 1fr;
+            }
+
+            .week-column + .week-column {
+                border-top: 1px solid #e5e7eb;
+                border-left: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="page">
+        <div class="page-top">
+            <header class="page-header">
+            <div>
+                <h1 class="page-title">Список задач</h1>
+
+                <p class="page-subtitle">
+                    Обновляйте еженедельный статус по каждой задаче.
+                    Слева — информация и артефакты, справа — статусы
+                    текущей и выбранной прошлой недели.
+                </p>
+            </div>
+
+            <div class="header-actions">
+                <a
+                    class="primary-button"
+                    href="{% url 'tracker:task-create' %}"
+                >
+                    Создать задачу
+                </a>
+
+                <a
+                    class="secondary-button"
+                    href="{% url 'tracker:dashboard' %}"
+                >
+                    Рабочая область
+                </a>
+
+                <a
+                    class="secondary-button"
+                    href="{% url 'accounts:logout' %}"
+                >
+                    Выйти
+                </a>
+            </div>
+            </header>
+
+            <section class="toolbar">
+                <input
+                    id="task-search"
+                    type="search"
+                    placeholder="Поиск по номеру, описанию или проекту"
+                    aria-label="Поиск задач"
+                >
+            </section>
+
+            {% if tasks %}
+                <section class="list-controls">
+                    <div class="history-toolbar">
+                        <div class="history-toolbar-inner">
+                            <button
+                                class="week-nav-button"
+                                id="older-week-button"
+                                type="button"
+                                data-week="{{ older_week_start|date:'Y-m-d' }}"
+                            >
+                                ← Назад
+                            </button>
+
+                            <span
+                                class="history-week-date"
+                                id="previous-week-label"
+                            >
+                                {{ previous_week_start|date:"d.m.Y" }}
+                            </span>
+
+                            <button
+                                class="week-nav-button{% if not can_move_forward %} disabled{% endif %}"
+                                id="newer-week-button"
+                                type="button"
+                                data-week="{{ newer_week_start|date:'Y-m-d' }}"
+                                {% if not can_move_forward %}disabled{% endif %}
+                            >
+                                Вперёд →
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            {% endif %}
+        </div>
+
+        <div class="tasks-scroll">
+            {% if tasks %}
+                <section class="tasks">
+                {% for task in tasks %}
+                    <article
+                        class="task-shell"
+                        data-task-id="{{ task.id }}"
+                        data-search-text="
+                            {{ task.external_number }}
+                            {{ task.summary }}
+                            {{ task.project_stream.name }}
+                        "
+                    >
+                        <div class="task-row">
+                            <section class="task-card">
+                                <div class="task-card-header">
+                                    <div>
+                                        <div class="task-project">
+                                            {{ task.project_stream.name }}
+                                        </div>
+
+                                        {% if task.external_number %}
+                                            {% if task.external_url %}
+                                                <a
+                                                    class="task-link"
+                                                    href="{{ task.external_url }}"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    {{ task.external_number }} ↗
+                                                </a>
+                                            {% else %}
+                                                <span class="task-number">
+                                                    {{ task.external_number }}
+                                                </span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="task-number">
+                                                Без внешнего номера
+                                            </span>
+                                        {% endif %}
+
+                                        <p class="task-description">
+                                            {{ task.summary }}
+                                        </p>
+                                    </div>
+
+                                    <a
+                                        class="icon-button"
+                                        href="{% url 'tracker:task-update' task.id %}"
+                                        title="Редактировать задачу"
+                                        aria-label="Редактировать задачу"
+                                    >
+                                        ✎
+                                    </a>
+                                </div>
+
+                                <div class="task-meta">
+                                    <span class="badge badge-status">
+                                        {{ task.status.name }}
+                                    </span>
+
+                                    <span class="badge badge-assignee">
+                                        {{ task.assignee.name }}
+                                    </span>
+                                </div>
+
+                                <div class="artifacts-section">
+                                    <div class="section-row">
+                                        <span class="section-label">
+                                            Артефакты
+                                        </span>
+
+                                        <button
+                                            class="text-button"
+                                            type="button"
+                                            data-artifact-add
+                                            data-create-url="{% url 'tracker:task-artifact-create' task.id %}"
+                                        >
+                                            + Добавить
+                                        </button>
+                                    </div>
+
+                                    <div
+                                        class="artifact-list"
+                                        data-artifact-list
+                                    >
+                                        {% for artifact in task.artifacts.all %}
+                                            <div
+                                                class="artifact-item"
+                                                data-artifact-id="{{ artifact.id }}"
+                                            >
+                                                <a
+                                                    href="{{ artifact.url }}"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    title="{{ artifact.name }}"
+                                                >
+                                                    {{ artifact.name }} ↗
+                                                </a>
+
+                                                <button
+                                                    class="artifact-delete-button"
+                                                    type="button"
+                                                    title="Удалить артефакт"
+                                                    aria-label="Удалить артефакт"
+                                                    data-artifact-delete
+                                                    data-delete-url="{% url 'tracker:task-artifact-delete' task.id artifact.id %}"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        {% empty %}
+                                            <span
+                                                class="artifact-empty"
+                                                data-artifact-empty
+                                            >
+                                                Артефакты пока не добавлены.
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="weekly-board">
+                                <div class="week-column previous">
+                                    <div class="week-heading">
+                                        <div>
+                                            <div class="week-kicker">
+                                                Предыдущая неделя
+                                            </div>
+
+                                            <h2 class="week-title">
+                                                Статус
+                                            </h2>
+                                        </div>
+
+                                        <span
+                                            class="week-date"
+                                            data-previous-week-date
+                                        >
+                                            с {{ previous_week_start|date:"d.m.Y" }}
+                                        </span>
+                                    </div>
+
+                                    <p
+                                        class="status-text{% if not task.previous_weekly_status %} status-empty{% endif %}"
+                                        data-previous-status
+                                    >{% if task.previous_weekly_status %}{{ task.previous_weekly_status.text }}{% else %}Статус за выбранную неделю не добавлен.{% endif %}</p>
+                                </div>
+
+                                <div class="week-column current">
+                                    <div class="week-heading">
+                                        <div>
+                                            <div class="week-kicker">
+                                                Текущая неделя
+                                            </div>
+
+                                            <h2 class="week-title">
+                                                Статус
+                                            </h2>
+                                        </div>
+
+                                        <span class="week-date">
+                                            с {{ current_week_start|date:"d.m.Y" }}
+                                        </span>
+                                    </div>
+
+                                    <div
+                                        class="status-display"
+                                        data-status-display
+                                    >
+                                        {% if task.current_weekly_status %}
+                                            <p class="status-text">{{ task.current_weekly_status.text }}</p>
+                                        {% else %}
+                                            <p class="status-text status-empty">Статус за текущую неделю ещё не добавлен.</p>
+                                        {% endif %}
+
+                                        <div class="status-actions">
+                                            <button
+                                                class="status-action edit"
+                                                type="button"
+                                                data-status-edit
+                                            >
+                                                {% if task.current_weekly_status %}
+                                                    Редактировать
+                                                {% else %}
+                                                    Добавить статус
+                                                {% endif %}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <form
+                                        class="status-editor{% if task.weekly_status_form.errors %} open{% endif %}"
+                                        method="post"
+                                        data-status-editor
+                                    >
+                                        {% csrf_token %}
+
+                                        <input
+                                            type="hidden"
+                                            name="task_id"
+                                            value="{{ task.id }}"
+                                        >
+
+                                        {% if task.weekly_status_form.text.errors %}
+                                            <div class="form-errors">
+                                                {{ task.weekly_status_form.text.errors }}
+                                            </div>
+                                        {% endif %}
+
+                                        {{ task.weekly_status_form.text }}
+
+                                        <div class="status-actions">
+                                            <button
+                                                class="status-action save"
+                                                type="submit"
+                                            >
+                                                Сохранить
+                                            </button>
+
+                                            <button
+                                                class="status-action cancel"
+                                                type="button"
+                                                data-status-cancel
+                                            >
+                                                Отмена
+                                            </button>
+                                        </div>
+                                    </form>
+
+                                    <div class="status-hint">
+                                        После начала новой недели этот статус
+                                        станет предыдущим.
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                    </article>
+                {% endfor %}
+                </section>
+            {% else %}
+                <div class="empty-message">
+                    Задач пока нет.
+                </div>
+            {% endif %}
+        </div>
+    </main>
+
+
+    <div
+        class="modal-backdrop"
+        id="artifact-modal"
+        aria-hidden="true"
+    >
+        <div
+            class="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="artifact-modal-title"
+        >
+            <div class="modal-header">
+                <h2
+                    class="modal-title"
+                    id="artifact-modal-title"
+                >
+                    Добавить артефакт
+                </h2>
+
+                <button
+                    class="modal-close"
+                    type="button"
+                    aria-label="Закрыть"
+                    data-artifact-modal-close
+                >
+                    ×
+                </button>
+            </div>
+
+            <form id="artifact-form">
+                {% csrf_token %}
+
+                <div class="modal-body">
+                    <div class="modal-field">
+                        <label for="artifact-name">
+                            Название
+                        </label>
+
+                        <input
+                            id="artifact-name"
+                            name="name"
+                            type="text"
+                            required
+                            placeholder="Например: Требования или прототип"
+                        >
+
+                        <div
+                            class="modal-error"
+                            data-artifact-error="name"
+                        ></div>
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="artifact-url">
+                            Ссылка
+                        </label>
+
+                        <input
+                            id="artifact-url"
+                            name="url"
+                            type="url"
+                            required
+                            placeholder="https://example.com/document"
+                        >
+
+                        <div
+                            class="modal-error"
+                            data-artifact-error="url"
+                        ></div>
+                    </div>
+
+                    <div
+                        class="modal-error"
+                        data-artifact-error="general"
+                    ></div>
+                </div>
+
+                <div class="modal-actions">
+                    <button
+                        class="secondary-button"
+                        type="button"
+                        data-artifact-modal-close
+                    >
+                        Отмена
+                    </button>
+
+                    <button
+                        class="primary-button"
+                        type="submit"
+                        data-artifact-submit
+                    >
+                        Сохранить
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div
+        class="modal-backdrop"
+        id="artifact-delete-modal"
+        aria-hidden="true"
+    >
+        <div
+            class="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="artifact-delete-modal-title"
+        >
+            <div class="modal-header">
+                <h2
+                    class="modal-title"
+                    id="artifact-delete-modal-title"
+                >
+                    Удалить артефакт?
+                </h2>
+
+                <button
+                    class="modal-close"
+                    type="button"
+                    aria-label="Закрыть"
+                    data-artifact-delete-modal-close
+                >
+                    ×
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <p class="confirmation-text">
+                    Артефакт
+                    <span
+                        class="confirmation-artifact-name"
+                        id="artifact-delete-name"
+                    ></span>
+                    будет удалён без возможности восстановления.
+                </p>
+
+                <div
+                    class="modal-error"
+                    id="artifact-delete-error"
+                ></div>
+            </div>
+
+            <div class="modal-actions">
+                <button
+                    class="secondary-button"
+                    type="button"
+                    data-artifact-delete-modal-close
+                >
+                    Отмена
+                </button>
+
+                <button
+                    class="danger-button"
+                    id="artifact-delete-confirm"
+                    type="button"
+                >
+                    Удалить
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const artifactModal = document.getElementById(
+            "artifact-modal"
+        );
+        const artifactForm = document.getElementById(
+            "artifact-form"
+        );
+        const artifactSubmitButton = artifactForm.querySelector(
+            "[data-artifact-submit]"
+        );
+        const artifactNameInput = document.getElementById(
+            "artifact-name"
+        );
+        let activeArtifactTaskCard = null;
+        let activeArtifactCreateUrl = null;
+
+        const artifactDeleteModal = document.getElementById(
+            "artifact-delete-modal"
+        );
+        const artifactDeleteName = document.getElementById(
+            "artifact-delete-name"
+        );
+        const artifactDeleteError = document.getElementById(
+            "artifact-delete-error"
+        );
+        const artifactDeleteConfirm = document.getElementById(
+            "artifact-delete-confirm"
+        );
+        let pendingArtifactDeleteButton = null;
+
+        function clearArtifactErrors() {
+            document.querySelectorAll(
+                "[data-artifact-error]"
+            ).forEach((element) => {
+                element.textContent = "";
+            });
+        }
+
+        function closeArtifactModal() {
+            artifactModal.classList.remove("open");
+            artifactModal.setAttribute("aria-hidden", "true");
+            artifactForm.reset();
+            clearArtifactErrors();
+            activeArtifactTaskCard = null;
+            activeArtifactCreateUrl = null;
+        }
+
+        document.querySelectorAll("[data-artifact-add]").forEach(
+            (button) => {
+                button.addEventListener("click", () => {
+                    activeArtifactTaskCard = button.closest(
+                        ".task-shell"
+                    );
+                    activeArtifactCreateUrl =
+                        button.dataset.createUrl;
+
+                    artifactModal.classList.add("open");
+                    artifactModal.setAttribute(
+                        "aria-hidden",
+                        "false"
+                    );
+                    clearArtifactErrors();
+                    artifactNameInput.focus();
+                });
+            }
+        );
+
+        document.querySelectorAll(
+            "[data-artifact-modal-close]"
+        ).forEach((button) => {
+            button.addEventListener("click", closeArtifactModal);
+        });
+
+        artifactModal.addEventListener("click", (event) => {
+            if (event.target === artifactModal) {
+                closeArtifactModal();
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (
+                event.key === "Escape"
+                && artifactModal.classList.contains("open")
+            ) {
+                closeArtifactModal();
+            }
+        });
+
+        function createArtifactElement(
+            taskId,
+            artifact
+        ) {
+            const item = document.createElement("div");
+            item.className = "artifact-item";
+            item.dataset.artifactId = artifact.id;
+
+            const link = document.createElement("a");
+            link.href = artifact.url;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.title = artifact.name;
+            link.textContent = `${artifact.name} ↗`;
+
+            const deleteButton = document.createElement("button");
+            deleteButton.className = "artifact-delete-button";
+            deleteButton.type = "button";
+            deleteButton.title = "Удалить артефакт";
+            deleteButton.setAttribute(
+                "aria-label",
+                "Удалить артефакт"
+            );
+            deleteButton.dataset.artifactDelete = "";
+            const createButton = activeArtifactTaskCard.querySelector(
+                "[data-artifact-add]"
+            );
+            deleteButton.dataset.deleteUrl =
+                createButton.dataset.createUrl.replace(
+                    "create/",
+                    `${artifact.id}/delete/`
+                );
+
+            item.append(link, deleteButton);
+            deleteButton.textContent = "×";
+
+            return item;
+        }
+
+        artifactForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            if (
+                !activeArtifactTaskCard
+                || !activeArtifactCreateUrl
+            ) {
+                return;
+            }
+
+            clearArtifactErrors();
+            artifactSubmitButton.disabled = true;
+
+            try {
+                const response = await fetch(
+                    activeArtifactCreateUrl,
+                    {
+                        method: "POST",
+                        body: new FormData(artifactForm),
+                        headers: {
+                            "X-Requested-With": "XMLHttpRequest",
+                        },
+                    }
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    if (data.errors) {
+                        Object.entries(data.errors).forEach(
+                            ([field, errors]) => {
+                                const target =
+                                    document.querySelector(
+                                        `[data-artifact-error="${field}"]`
+                                    );
+
+                                if (target) {
+                                    target.textContent = errors
+                                        .map((error) => error.message)
+                                        .join(" ");
+                                }
+                            }
+                        );
+                    }
+
+                    throw new Error(
+                        "Проверьте заполнение полей."
+                    );
+                }
+
+                const list = activeArtifactTaskCard.querySelector(
+                    "[data-artifact-list]"
+                );
+                const emptyMessage = list.querySelector(
+                    "[data-artifact-empty]"
+                );
+
+                if (emptyMessage) {
+                    emptyMessage.remove();
+                }
+
+                list.append(
+                    createArtifactElement(
+                        activeArtifactTaskCard.dataset.taskId,
+                        data.artifact
+                    )
+                );
+
+                closeArtifactModal();
+            } catch (error) {
+                const generalError = document.querySelector(
+                    '[data-artifact-error="general"]'
+                );
+
+                if (
+                    generalError
+                    && !generalError.textContent
+                ) {
+                    generalError.textContent = error.message;
+                }
+            } finally {
+                artifactSubmitButton.disabled = false;
+            }
+        });
+
+        function closeArtifactDeleteModal() {
+            artifactDeleteModal.classList.remove("open");
+            artifactDeleteModal.setAttribute(
+                "aria-hidden",
+                "true"
+            );
+            artifactDeleteError.textContent = "";
+            artifactDeleteConfirm.disabled = false;
+            pendingArtifactDeleteButton = null;
+        }
+
+        document.querySelectorAll(
+            "[data-artifact-delete-modal-close]"
+        ).forEach((button) => {
+            button.addEventListener(
+                "click",
+                closeArtifactDeleteModal
+            );
+        });
+
+        artifactDeleteModal.addEventListener(
+            "click",
+            (event) => {
+                if (event.target === artifactDeleteModal) {
+                    closeArtifactDeleteModal();
+                }
+            }
+        );
+
+        document.addEventListener("keydown", (event) => {
+            if (
+                event.key === "Escape"
+                && artifactDeleteModal.classList.contains("open")
+            ) {
+                closeArtifactDeleteModal();
+            }
+        });
+
+        document.addEventListener("click", (event) => {
+            const deleteButton = event.target.closest(
+                "[data-artifact-delete]"
+            );
+
+            if (!deleteButton) {
+                return;
+            }
+
+            const artifactItem = deleteButton.closest(
+                ".artifact-item"
+            );
+            const artifactLink = artifactItem.querySelector("a");
+
+            pendingArtifactDeleteButton = deleteButton;
+            artifactDeleteName.textContent =
+                `«${artifactLink.title}»`;
+            artifactDeleteError.textContent = "";
+
+            artifactDeleteModal.classList.add("open");
+            artifactDeleteModal.setAttribute(
+                "aria-hidden",
+                "false"
+            );
+            artifactDeleteConfirm.focus();
+        });
+
+        artifactDeleteConfirm.addEventListener(
+            "click",
+            async () => {
+                if (!pendingArtifactDeleteButton) {
+                    return;
+                }
+
+                const deleteButton =
+                    pendingArtifactDeleteButton;
+                const artifactItem = deleteButton.closest(
+                    ".artifact-item"
+                );
+                const taskCard = deleteButton.closest(
+                    ".task-shell"
+                );
+                const list = taskCard.querySelector(
+                    "[data-artifact-list]"
+                );
+
+                artifactDeleteConfirm.disabled = true;
+                artifactDeleteError.textContent = "";
+
+                try {
+                    const csrfToken = artifactForm.querySelector(
+                        "[name=csrfmiddlewaretoken]"
+                    ).value;
+
+                    const response = await fetch(
+                        deleteButton.dataset.deleteUrl,
+                        {
+                            method: "POST",
+                            headers: {
+                                "X-CSRFToken": csrfToken,
+                                "X-Requested-With":
+                                    "XMLHttpRequest",
+                            },
+                        }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(
+                            "Не удалось удалить артефакт."
+                        );
+                    }
+
+                    artifactItem.remove();
+
+                    if (
+                        !list.querySelector(".artifact-item")
+                    ) {
+                        const emptyMessage =
+                            document.createElement("span");
+
+                        emptyMessage.className =
+                            "artifact-empty";
+                        emptyMessage.dataset.artifactEmpty = "";
+                        emptyMessage.textContent =
+                            "Артефакты пока не добавлены.";
+
+                        list.append(emptyMessage);
+                    }
+
+                    closeArtifactDeleteModal();
+                } catch (error) {
+                    artifactDeleteConfirm.disabled = false;
+                    artifactDeleteError.textContent =
+                        error.message;
+                }
+            }
+        );
+
+        document.querySelectorAll(".week-column.current").forEach(
+            (column) => {
+                const display = column.querySelector(
+                    "[data-status-display]"
+                );
+                const editor = column.querySelector(
+                    "[data-status-editor]"
+                );
+                const editButton = column.querySelector(
+                    "[data-status-edit]"
+                );
+                const cancelButton = column.querySelector(
+                    "[data-status-cancel]"
+                );
+                const textarea = editor.querySelector("textarea");
+
+                if (editor.classList.contains("open")) {
+                    display.style.display = "none";
+                }
+
+                editButton.addEventListener("click", () => {
+                    display.style.display = "none";
+                    editor.classList.add("open");
+                    textarea.focus();
+                });
+
+                cancelButton.addEventListener("click", () => {
+                    editor.classList.remove("open");
+                    display.style.display = "block";
+                });
+            }
+        );
+
+        const searchInput = document.getElementById("task-search");
+
+        if (searchInput) {
+            searchInput.addEventListener("input", () => {
+                const query = searchInput.value
+                    .trim()
+                    .toLowerCase();
+
+                document.querySelectorAll(".task-shell").forEach(
+                    (taskCard) => {
+                        const searchableText = taskCard.dataset
+                            .searchText
+                            .toLowerCase();
+
+                        taskCard.style.display =
+                            searchableText.includes(query)
+                                ? ""
+                                : "none";
+                    }
+                );
+            });
+        }
+
+        const olderWeekButton = document.getElementById(
+            "older-week-button"
+        );
+        const newerWeekButton = document.getElementById(
+            "newer-week-button"
+        );
+        const previousWeekLabel = document.getElementById(
+            "previous-week-label"
+        );
+
+        async function loadPreviousWeek(weekStart) {
+            if (!weekStart) {
+                return;
+            }
+
+            olderWeekButton.disabled = true;
+            newerWeekButton.disabled = true;
+
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.set("week", weekStart);
+                url.searchParams.set("format", "json");
+
+                const response = await fetch(url, {
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Не удалось загрузить статусы недели."
+                    );
+                }
+
+                const data = await response.json();
+
+                previousWeekLabel.textContent =
+                    data.previous_week_label;
+
+                document.querySelectorAll(".task-shell").forEach(
+                    (taskCard) => {
+                        const taskId = taskCard.dataset.taskId;
+                        const statusData = data.statuses[taskId];
+                        const statusElement = taskCard.querySelector(
+                            "[data-previous-status]"
+                        );
+                        const dateElement = taskCard.querySelector(
+                            "[data-previous-week-date]"
+                        );
+
+                        dateElement.textContent =
+                            `с ${data.previous_week_label}`;
+
+                        if (
+                            statusData
+                            && statusData.has_status
+                        ) {
+                            statusElement.textContent =
+                                statusData.text;
+                            statusElement.classList.remove(
+                                "status-empty"
+                            );
+                        } else {
+                            statusElement.textContent =
+                                "Статус за выбранную неделю не добавлен.";
+                            statusElement.classList.add(
+                                "status-empty"
+                            );
+                        }
+                    }
+                );
+
+                olderWeekButton.dataset.week =
+                    data.older_week_start;
+                newerWeekButton.dataset.week =
+                    data.newer_week_start;
+
+                newerWeekButton.disabled =
+                    !data.can_move_forward;
+                newerWeekButton.classList.toggle(
+                    "disabled",
+                    !data.can_move_forward
+                );
+
+                const browserUrl = new URL(window.location.href);
+                browserUrl.searchParams.set(
+                    "week",
+                    data.previous_week_start
+                );
+                browserUrl.searchParams.delete("format");
+
+                window.history.replaceState(
+                    {},
+                    "",
+                    browserUrl
+                );
+            } catch (error) {
+                alert(error.message);
+            } finally {
+                olderWeekButton.disabled = false;
+
+                if (
+                    !newerWeekButton.classList.contains(
+                        "disabled"
+                    )
+                ) {
+                    newerWeekButton.disabled = false;
+                }
+            }
+        }
+
+        olderWeekButton.addEventListener("click", () => {
+            loadPreviousWeek(
+                olderWeekButton.dataset.week
+            );
+        });
+
+        newerWeekButton.addEventListener("click", () => {
+            if (!newerWeekButton.disabled) {
+                loadPreviousWeek(
+                    newerWeekButton.dataset.week
+                );
+            }
+        });
+    </script>
+</body>
+</html>

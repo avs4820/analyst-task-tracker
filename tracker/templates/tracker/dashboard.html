@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Analyst Task Tracker</title>
+</head>
+<body>
+    <h1>Панель управления</h1>
+
+    <p>Добро пожаловать, {{ user }}!</p>
+
+    <p>Ваша роль: {{ user.role.name }}</p>
+
+    <hr>
+
+    {% if user.role.code == "administrator" %}
+        <h2>Администрирование</h2>
+
+        <ul>
+            <li>Управление пользователями</li>
+            <li>Управление ролями</li>
+            <li>
+                <a href="{% url 'tracker:task-list' %}">
+                    Список задач
+                </a>
+            </li>
+            <li>Настройки системы</li>
+        </ul>
+    {% else %}
+        <h2>Рабочая область</h2>
+
+        <ul>
+            <li>
+                <a href="{% url 'tracker:task-list' %}">
+                    Список задач
+                </a>
+            </li>
+            <li>Создание задачи</li>
+            <li>Просмотр назначенных задач</li>
+        </ul>
+    {% endif %}
+</body>
+</html>

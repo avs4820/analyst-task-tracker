@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    {% if task %}
+        <title>Редактирование задачи</title>
+    {% else %}
+        <title>Создание задачи</title>
+    {% endif %}
+
+    <style>
+        body {
+            margin: 0;
+            padding: 30px;
+            font-family: Arial, sans-serif;
+            color: #222;
+            background-color: #f5f6f8;
+        }
+
+        .page-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            margin: 0;
+        }
+
+        .back-link {
+            color: #1f5fa8;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .form-card {
+            padding: 24px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        .form-field {
+            margin-bottom: 18px;
+        }
+
+        .form-field label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        .form-field input,
+        .form-field select,
+        .form-field textarea {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
+            border: 1px solid #bbb;
+            border-radius: 4px;
+            font: inherit;
+        }
+
+        .help-text {
+            margin-top: 5px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .error-list {
+            margin: 6px 0 0;
+            padding-left: 20px;
+            color: #b00020;
+        }
+
+        .section-divider {
+            margin: 30px 0 24px;
+            border: 0;
+            border-top: 1px solid #ddd;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        .section-description {
+            margin: 6px 0 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .artifact-form {
+            position: relative;
+            margin-bottom: 16px;
+            padding: 18px;
+            background-color: #f8f9fb;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+
+        .artifact-form.is-deleted {
+            display: none;
+        }
+
+        .artifact-title {
+            margin: 0 0 14px;
+            font-size: 17px;
+        }
+
+        .artifact-delete {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .artifact-delete input {
+            width: auto;
+        }
+
+        .artifact-delete label {
+            margin: 0;
+            font-weight: normal;
+            color: #9b1c1c;
+            cursor: pointer;
+        }
+
+        .add-artifact-button {
+            padding: 9px 14px;
+            border: 1px solid #1f5fa8;
+            border-radius: 4px;
+            color: #1f5fa8;
+            background-color: #fff;
+            cursor: pointer;
+        }
+
+        .add-artifact-button:hover {
+            color: #fff;
+            background-color: #1f5fa8;
+        }
+
+        .remove-artifact-button {
+            padding: 8px 12px;
+            border: 1px solid #b00020;
+            border-radius: 4px;
+            color: #b00020;
+            background-color: #fff;
+            cursor: pointer;
+        }
+
+        .remove-artifact-button:hover {
+            color: #fff;
+            background-color: #b00020;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .submit-button {
+            padding: 10px 18px;
+            border: 0;
+            border-radius: 4px;
+            color: #fff;
+            background-color: #1f5fa8;
+            cursor: pointer;
+        }
+
+        .submit-button:hover {
+            background-color: #184d89;
+        }
+
+        .cancel-link {
+            padding: 10px 18px;
+            color: #333;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="page-container">
+        <header class="page-header">
+            {% if task %}
+                <h1 class="page-title">Редактирование задачи</h1>
+            {% else %}
+                <h1 class="page-title">Создание задачи</h1>
+            {% endif %}
+
+            <a
+                class="back-link"
+                href="{% url 'tracker:task-list' %}"
+            >
+                Вернуться к списку задач
+            </a>
+        </header>
+
+        <section class="form-card">
+            <form method="post">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <ul class="error-list">
+                        {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+
+                {% for field in form %}
+                    <div class="form-field">
+                        {{ field.label_tag }}
+                        {{ field }}
+
+                        {% if field.help_text %}
+                            <div class="help-text">
+                                {{ field.help_text }}
+                            </div>
+                        {% endif %}
+
+                        {% if field.errors %}
+                            <ul class="error-list">
+                                {% for error in field.errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+
+                <hr class="section-divider">
+
+                <div class="section-header">
+                    <div>
+                        <h2 class="section-title">Артефакты</h2>
+
+                        <p class="section-description">
+                            Добавьте ссылки на требования, прототипы,
+                            документацию и другие материалы задачи.
+                        </p>
+                    </div>
+
+                    <button
+                        id="add-artifact-button"
+                        class="add-artifact-button"
+                        type="button"
+                    >
+                        Добавить артефакт
+                    </button>
+                </div>
+
+                {{ artifact_formset.management_form }}
+
+                {% if artifact_formset.non_form_errors %}
+                    <ul class="error-list">
+                        {% for error in artifact_formset.non_form_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+
+                <div id="artifact-form-list">
+                    {% for artifact_form in artifact_formset %}
+                        <div class="artifact-form">
+                            {% for hidden_field in artifact_form.hidden_fields %}
+                                {{ hidden_field }}
+                            {% endfor %}
+
+                            <h3 class="artifact-title">
+                                Артефакт
+                            </h3>
+
+                            {% if artifact_form.non_field_errors %}
+                                <ul class="error-list">
+                                    {% for error in artifact_form.non_field_errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+
+                            <div class="form-field">
+                                {{ artifact_form.name.label_tag }}
+                                {{ artifact_form.name }}
+
+                                {% if artifact_form.name.help_text %}
+                                    <div class="help-text">
+                                        {{ artifact_form.name.help_text }}
+                                    </div>
+                                {% endif %}
+
+                                {% if artifact_form.name.errors %}
+                                    <ul class="error-list">
+                                        {% for error in artifact_form.name.errors %}
+                                            <li>{{ error }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </div>
+
+                            <div class="form-field">
+                                {{ artifact_form.url.label_tag }}
+                                {{ artifact_form.url }}
+
+                                {% if artifact_form.url.help_text %}
+                                    <div class="help-text">
+                                        {{ artifact_form.url.help_text }}
+                                    </div>
+                                {% endif %}
+
+                                {% if artifact_form.url.errors %}
+                                    <ul class="error-list">
+                                        {% for error in artifact_form.url.errors %}
+                                            <li>{{ error }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </div>
+
+                            {% if artifact_form.instance.pk %}
+                                <div class="artifact-delete">
+                                    {{ artifact_form.DELETE }}
+                                    <label for="{{ artifact_form.DELETE.id_for_label }}">
+                                        Удалить этот артефакт
+                                    </label>
+                                </div>
+                            {% else %}
+                                <button
+                                    class="remove-artifact-button"
+                                    type="button"
+                                >
+                                    Убрать артефакт
+                                </button>
+
+                                <div hidden>
+                                    {{ artifact_form.DELETE }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <template id="empty-artifact-form">
+                    <div class="artifact-form">
+                        {% for hidden_field in artifact_formset.empty_form.hidden_fields %}
+                            {{ hidden_field }}
+                        {% endfor %}
+
+                        <h3 class="artifact-title">
+                            Артефакт
+                        </h3>
+
+                        <div class="form-field">
+                            {{ artifact_formset.empty_form.name.label_tag }}
+                            {{ artifact_formset.empty_form.name }}
+
+                            {% if artifact_formset.empty_form.name.help_text %}
+                                <div class="help-text">
+                                    {{ artifact_formset.empty_form.name.help_text }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-field">
+                            {{ artifact_formset.empty_form.url.label_tag }}
+                            {{ artifact_formset.empty_form.url }}
+
+                            {% if artifact_formset.empty_form.url.help_text %}
+                                <div class="help-text">
+                                    {{ artifact_formset.empty_form.url.help_text }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <button
+                            class="remove-artifact-button"
+                            type="button"
+                        >
+                            Убрать артефакт
+                        </button>
+
+                        <div hidden>
+                            {{ artifact_formset.empty_form.DELETE }}
+                        </div>
+                    </div>
+                </template>
+
+                <div class="form-actions">
+                    <button
+                        class="submit-button"
+                        type="submit"
+                    >
+                        {% if task %}
+                            Сохранить изменения
+                        {% else %}
+                            Создать задачу
+                        {% endif %}
+                    </button>
+
+                    <a
+                        class="cancel-link"
+                        href="{% url 'tracker:task-list' %}"
+                    >
+                        Отмена
+                    </a>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        const artifactFormList = document.getElementById(
+            "artifact-form-list"
+        );
+
+        const addArtifactButton = document.getElementById(
+            "add-artifact-button"
+        );
+
+        const emptyArtifactTemplate = document.getElementById(
+            "empty-artifact-form"
+        );
+
+        const totalFormsInput = document.getElementById(
+            "id_artifacts-TOTAL_FORMS"
+        );
+
+        function configureRemoveButton(artifactForm) {
+            const removeButton = artifactForm.querySelector(
+                ".remove-artifact-button"
+            );
+
+            if (!removeButton) {
+                return;
+            }
+
+            removeButton.addEventListener("click", function () {
+                const deleteInput = artifactForm.querySelector(
+                    'input[name$="-DELETE"]'
+                );
+
+                if (deleteInput) {
+                    deleteInput.checked = true;
+                }
+
+                artifactForm.classList.add("is-deleted");
+            });
+        }
+
+        document
+            .querySelectorAll(".artifact-form")
+            .forEach(configureRemoveButton);
+
+        addArtifactButton.addEventListener("click", function () {
+            const formIndex = Number(totalFormsInput.value);
+
+            const newFormHtml = emptyArtifactTemplate.innerHTML.replaceAll(
+                "__prefix__",
+                formIndex
+            );
+
+            artifactFormList.insertAdjacentHTML(
+                "beforeend",
+                newFormHtml
+            );
+
+            const newArtifactForm = artifactFormList.lastElementChild;
+
+            configureRemoveButton(newArtifactForm);
+
+            totalFormsInput.value = formIndex + 1;
+        });
+    </script>
+</body>
+</html>

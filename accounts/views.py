@@ -11,7 +11,7 @@ def login_view(request):
     # Если пользователь уже авторизован,
     # повторно показывать страницу входа не нужно.
     if request.user.is_authenticated:
-        return redirect("accounts:success")
+        return redirect("tracker:task-list")
 
     form = LoginForm(request.POST or None)
 
@@ -43,7 +43,7 @@ def login_view(request):
             ):
                 return redirect(next_url)
 
-            return redirect("accounts:success")
+            return redirect("tracker:task-list")
 
         form.add_error(
             None,
@@ -64,15 +64,12 @@ def success_view(request):
     if not request.user.is_authenticated:
         return redirect("accounts:not_authorized")
 
-    return render(
-        request,
-        "accounts/success.html",
-    )
+    return redirect("tracker:task-list")
 
 
 def not_authorized_view(request):
     if request.user.is_authenticated:
-        return redirect("accounts:success")
+        return redirect("tracker:task-list")
 
     return render(
         request,
