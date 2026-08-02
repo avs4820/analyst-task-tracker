@@ -592,6 +592,22 @@ class TaskListViewTests(TestCase):
             is_active=True,
         )
 
+        self.done_status = TaskStatus.objects.create(
+            name="Завершена",
+            code="done",
+            order=6,
+            is_final=True,
+            is_active=True,
+        )
+
+        self.cancelled_status = TaskStatus.objects.create(
+            name="Отменена",
+            code="cancelled",
+            order=7,
+            is_final=True,
+            is_active=True,
+        )
+
         self.task = Task.objects.create(
             project_stream=self.project_stream,
             summary="Добавить страницу управления пресетами",
@@ -610,6 +626,37 @@ class TaskListViewTests(TestCase):
             assignee=self.second_employee,
             status=self.status,
             created_by=self.manager,
+        )
+
+        self.second_project_stream = ProjectStream.objects.create(
+            name="Автоматизация",
+        )
+
+        self.done_task = Task.objects.create(
+            project_stream=self.project_stream,
+            summary="Завершённая задача",
+            external_number="RND-3000",
+            assignee=self.user,
+            status=self.done_status,
+            created_by=self.user,
+        )
+
+        self.cancelled_task = Task.objects.create(
+            project_stream=self.project_stream,
+            summary="Отменённая задача",
+            external_number="RND-4000",
+            assignee=self.user,
+            status=self.cancelled_status,
+            created_by=self.user,
+        )
+
+        self.sorting_task = Task.objects.create(
+            project_stream=self.second_project_stream,
+            summary="Анализ автоматизации",
+            external_number="RND-0001",
+            assignee=self.user,
+            status=self.status,
+            created_by=self.user,
         )
 
     def test_anonymous_user_is_redirected_to_login(self):
@@ -684,7 +731,13 @@ class TaskListViewTests(TestCase):
 
         tasks = list(response.context["tasks"])
 
-        self.assertEqual(tasks, [self.task])
+        self.assertEqual(
+            set(tasks),
+            {
+                self.task,
+                self.sorting_task,
+            },
+        )
 
     def test_manager_sees_all_tasks(self):
         self.client.force_login(self.manager)
@@ -706,7 +759,11 @@ class TaskListViewTests(TestCase):
 
         self.assertEqual(
             set(response.context["tasks"]),
-            {self.task, self.second_task},
+            {
+                self.task,
+                self.second_task,
+                self.sorting_task,
+            },
         )
 
     def test_administrator_sees_all_tasks(self):
@@ -729,7 +786,11 @@ class TaskListViewTests(TestCase):
 
         self.assertEqual(
             set(response.context["tasks"]),
-            {self.task, self.second_task},
+            {
+                self.task,
+                self.second_task,
+                self.sorting_task,
+            },
         )
 
     def test_employee_without_assigned_tasks_sees_empty_list_message(self):
@@ -795,6 +856,293 @@ class TaskListViewTests(TestCase):
         self.assertContains(response, "Задач пока нет.")
 
 
+    def test_final_tasks_are_hidden_by_default(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list")
+        )
+
+        tasks = set(response.context["tasks"])
+
+        self.assertIn(self.task, tasks)
+        self.assertIn(self.sorting_task, tasks)
+        self.assertNotIn(self.done_task, tasks)
+        self.assertNotIn(self.cancelled_task, tasks)
+
+        self.assertFalse(response.context["show_done"])
+        self.assertFalse(response.context["show_cancelled"])
+
+    def test_done_tasks_can_be_shown(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {"show_done": "1"},
+        )
+
+        tasks = set(response.context["tasks"])
+
+        self.assertIn(self.task, tasks)
+        self.assertIn(self.sorting_task, tasks)
+        self.assertIn(self.done_task, tasks)
+        self.assertNotIn(self.cancelled_task, tasks)
+
+        self.assertTrue(response.context["show_done"])
+        self.assertFalse(response.context["show_cancelled"])
+
+    def test_cancelled_tasks_can_be_shown(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {"show_cancelled": "1"},
+        )
+
+        tasks = set(response.context["tasks"])
+
+        self.assertIn(self.task, tasks)
+        self.assertIn(self.sorting_task, tasks)
+        self.assertNotIn(self.done_task, tasks)
+        self.assertIn(self.cancelled_task, tasks)
+
+        self.assertFalse(response.context["show_done"])
+        self.assertTrue(response.context["show_cancelled"])
+
+    def test_all_final_tasks_can_be_shown(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {
+                "show_done": "1",
+                "show_cancelled": "1",
+            },
+        )
+
+        tasks = set(response.context["tasks"])
+
+        self.assertEqual(
+            tasks,
+            {
+                self.task,
+                self.sorting_task,
+                self.done_task,
+                self.cancelled_task,
+            },
+        )
+
+        self.assertTrue(response.context["show_done"])
+        self.assertTrue(response.context["show_cancelled"])
+
+    def test_show_done_requires_value_one(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {"show_done": "yes"},
+        )
+
+        self.assertNotIn(
+            self.done_task,
+            response.context["tasks"],
+        )
+        self.assertFalse(response.context["show_done"])
+
+    def test_tasks_are_sorted_by_project_ascending_by_default(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list")
+        )
+
+        tasks = list(response.context["tasks"])
+
+        self.assertEqual(
+            tasks,
+            [
+                self.sorting_task,
+                self.task,
+            ],
+        )
+        self.assertEqual(
+            response.context["selected_sort"],
+            "project",
+        )
+        self.assertEqual(
+            response.context["sort_direction"],
+            "asc",
+        )
+
+    def test_tasks_can_be_sorted_by_project_descending(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {
+                "sort": "project",
+                "direction": "desc",
+            },
+        )
+
+        self.assertEqual(
+            list(response.context["tasks"]),
+            [
+                self.task,
+                self.sorting_task,
+            ],
+        )
+
+    def test_tasks_can_be_sorted_by_number_ascending(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {
+                "sort": "number",
+                "direction": "asc",
+            },
+        )
+
+        self.assertEqual(
+            list(response.context["tasks"]),
+            [
+                self.sorting_task,
+                self.task,
+            ],
+        )
+        self.assertEqual(
+            response.context["selected_sort"],
+            "number",
+        )
+
+    def test_tasks_can_be_sorted_by_number_descending(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {
+                "sort": "number",
+                "direction": "desc",
+            },
+        )
+
+        self.assertEqual(
+            list(response.context["tasks"]),
+            [
+                self.task,
+                self.sorting_task,
+            ],
+        )
+
+    def test_tasks_can_be_sorted_by_summary_ascending(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {
+                "sort": "summary",
+                "direction": "asc",
+            },
+        )
+
+        self.assertEqual(
+            list(response.context["tasks"]),
+            [
+                self.sorting_task,
+                self.task,
+            ],
+        )
+        self.assertEqual(
+            response.context["selected_sort"],
+            "summary",
+        )
+
+    def test_tasks_can_be_sorted_by_summary_descending(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {
+                "sort": "summary",
+                "direction": "desc",
+            },
+        )
+
+        self.assertEqual(
+            list(response.context["tasks"]),
+            [
+                self.task,
+                self.sorting_task,
+            ],
+        )
+
+    def test_invalid_sort_value_falls_back_to_project(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {"sort": "unknown"},
+        )
+
+        self.assertEqual(
+            list(response.context["tasks"]),
+            [
+                self.sorting_task,
+                self.task,
+            ],
+        )
+        self.assertEqual(
+            response.context["selected_sort"],
+            "project",
+        )
+
+    def test_invalid_direction_falls_back_to_ascending(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {
+                "sort": "project",
+                "direction": "sideways",
+            },
+        )
+
+        self.assertEqual(
+            list(response.context["tasks"]),
+            [
+                self.sorting_task,
+                self.task,
+            ],
+        )
+        self.assertEqual(
+            response.context["sort_direction"],
+            "asc",
+        )
+
+    def test_employee_does_not_see_other_users_final_tasks(self):
+        other_done_task = Task.objects.create(
+            project_stream=self.project_stream,
+            summary="Чужая завершённая задача",
+            external_number="RND-9999",
+            assignee=self.second_employee,
+            status=self.done_status,
+            created_by=self.second_employee,
+        )
+
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {"show_done": "1"},
+        )
+
+        tasks = set(response.context["tasks"])
+
+        self.assertIn(self.done_task, tasks)
+        self.assertNotIn(other_done_task, tasks)
+
+
     @patch("tracker.views.timezone.localdate")
     def test_task_list_context_contains_current_and_previous_weeks(
         self,
@@ -851,7 +1199,11 @@ class TaskListViewTests(TestCase):
             reverse("tracker:task-list")
         )
 
-        task = response.context["tasks"][0]
+        task = next(
+            task
+            for task in response.context["tasks"]
+            if task.id == self.task.id
+        )
 
         self.assertEqual(
             task.current_weekly_status,
@@ -888,12 +1240,19 @@ class TaskListViewTests(TestCase):
 
         tasks = response.context["tasks"]
 
-        self.assertEqual(len(tasks), 1)
-        self.assertEqual(tasks[0], self.task)
-        self.assertNotEqual(
-            tasks[0].current_weekly_status,
-            other_status,
+        self.assertEqual(
+            set(tasks),
+            {
+                self.task,
+                self.sorting_task,
+            },
         )
+
+        for task in tasks:
+            self.assertNotEqual(
+                task.current_weekly_status,
+                other_status,
+            )
 
     @patch("tracker.views.timezone.localdate")
     def test_employee_can_create_current_weekly_status(
@@ -1055,7 +1414,11 @@ class TaskListViewTests(TestCase):
             {"week": "2026-07-13"},
         )
 
-        task = response.context["tasks"][0]
+        task = next(
+            task
+            for task in response.context["tasks"]
+            if task.id == self.task.id
+        )
 
         self.assertEqual(
             response.context["previous_week_start"],
@@ -1108,6 +1471,650 @@ class TaskListViewTests(TestCase):
             date(2026, 7, 20),
         )
 
+
+class TaskInlineUpdateTests(TestCase):
+    def setUp(self):
+        self.employee_role, _ = Role.objects.get_or_create(
+            code="employee",
+            defaults={"name": "Employee"},
+        )
+        self.manager_role, _ = Role.objects.get_or_create(
+            code="manager",
+            defaults={"name": "Manager"},
+        )
+
+        self.employee = User.objects.create(
+            login="inline_edit_employee",
+            name="Inline Edit Employee",
+            role=self.employee_role,
+        )
+        self.employee.set_password("test-password-123")
+        self.employee.save()
+
+        self.other_employee = User.objects.create(
+            login="inline_edit_other_employee",
+            name="Inline Edit Other Employee",
+            role=self.employee_role,
+        )
+        self.other_employee.set_password("test-password-123")
+        self.other_employee.save()
+
+        self.manager = User.objects.create(
+            login="inline_edit_manager",
+            name="Inline Edit Manager",
+            role=self.manager_role,
+        )
+        self.manager.set_password("test-password-123")
+        self.manager.save()
+
+        self.project_stream = ProjectStream.objects.create(
+            name="Исходный стрим",
+        )
+        self.second_project_stream = ProjectStream.objects.create(
+            name="Новый стрим",
+        )
+
+        self.status = TaskStatus.objects.create(
+            name="Новая",
+            code="new",
+            order=1,
+        )
+        self.second_status = TaskStatus.objects.create(
+            name="В работе",
+            code="in_progress",
+            order=2,
+        )
+
+        self.task = Task.objects.create(
+            project_stream=self.project_stream,
+            summary="Исходное описание",
+            external_number="RND-1000",
+            external_url=(
+                "https://youtrack.example.com/issue/RND-1000"
+            ),
+            assignee=self.employee,
+            status=self.status,
+            created_by=self.employee,
+        )
+
+        self.other_task = Task.objects.create(
+            project_stream=self.project_stream,
+            summary="Задача другого сотрудника",
+            external_number="RND-2000",
+            external_url=(
+                "https://youtrack.example.com/issue/RND-2000"
+            ),
+            assignee=self.other_employee,
+            status=self.status,
+            created_by=self.other_employee,
+        )
+
+    def get_inline_form_data(
+        self,
+        task,
+        *,
+        project_stream=None,
+        summary=None,
+        external_number=None,
+        external_url=None,
+        assignee=None,
+        status=None,
+    ):
+        prefix = f"task-edit-{task.id}"
+
+        data = {
+            f"{prefix}-project_stream": (
+                project_stream or task.project_stream
+            ).id,
+            f"{prefix}-summary": (
+                summary
+                if summary is not None
+                else task.summary
+            ),
+            f"{prefix}-external_number": (
+                external_number
+                if external_number is not None
+                else task.external_number
+            ),
+            f"{prefix}-external_url": (
+                external_url
+                if external_url is not None
+                else task.external_url
+            ),
+            f"{prefix}-assignee": (
+                assignee or task.assignee
+            ).id,
+        }
+
+        if status is not None:
+            data[f"{prefix}-status"] = status.id
+
+        return data
+
+    def test_anonymous_user_is_redirected_to_login(self):
+        response = self.client.post(
+            reverse(
+                "tracker:task-inline-update",
+                args=[self.task.id],
+            ),
+            self.get_inline_form_data(self.task),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(
+            reverse("accounts:login"),
+            response.url,
+        )
+
+    def test_employee_can_inline_update_own_task_but_cannot_change_assignee(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.post(
+            reverse(
+                "tracker:task-inline-update",
+                args=[self.task.id],
+            ),
+            self.get_inline_form_data(
+                self.task,
+                project_stream=self.second_project_stream,
+                summary="Обновлённое описание",
+                external_number="RND-3000",
+                external_url=(
+                    "https://youtrack.example.com/issue/RND-3000"
+                ),
+                assignee=self.other_employee,
+            ),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+
+        self.assertTrue(data["success"])
+        self.assertEqual(
+            data["task"]["project_stream"]["name"],
+            "Новый стрим",
+        )
+        self.assertEqual(
+            data["task"]["external_number"],
+            "RND-3000",
+        )
+        self.assertEqual(
+            data["task"]["external_url"],
+            "https://youtrack.example.com/issue/RND-3000",
+        )
+        self.assertEqual(
+            data["task"]["summary"],
+            "Обновлённое описание",
+        )
+        self.assertEqual(
+            data["task"]["assignee"]["name"],
+            "Inline Edit Employee",
+        )
+
+        self.task.refresh_from_db()
+
+        self.assertEqual(
+            self.task.project_stream,
+            self.second_project_stream,
+        )
+        self.assertEqual(
+            self.task.summary,
+            "Обновлённое описание",
+        )
+        self.assertEqual(
+            self.task.external_number,
+            "RND-3000",
+        )
+        self.assertEqual(
+            self.task.external_url,
+            "https://youtrack.example.com/issue/RND-3000",
+        )
+        self.assertEqual(
+            self.task.assignee,
+            self.employee,
+        )
+
+    def test_employee_cannot_inline_update_other_users_task(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.post(
+            reverse(
+                "tracker:task-inline-update",
+                args=[self.other_task.id],
+            ),
+            self.get_inline_form_data(
+                self.other_task,
+                summary="Попытка изменить чужую задачу",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+        self.other_task.refresh_from_db()
+
+        self.assertEqual(
+            self.other_task.summary,
+            "Задача другого сотрудника",
+        )
+
+    def test_invalid_inline_form_returns_json_errors(self):
+        self.client.force_login(self.employee)
+
+        prefix = f"task-edit-{self.task.id}"
+
+        response = self.client.post(
+            reverse(
+                "tracker:task-inline-update",
+                args=[self.task.id],
+            ),
+            {
+                f"{prefix}-project_stream": "",
+                f"{prefix}-summary": "",
+                f"{prefix}-external_number": "RND-1000",
+                f"{prefix}-external_url": "not-a-valid-url",
+                f"{prefix}-assignee": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+        data = response.json()
+
+        self.assertFalse(data["success"])
+        self.assertIn("project_stream", data["errors"])
+        self.assertIn("summary", data["errors"])
+        self.assertIn("external_url", data["errors"])
+        self.assertNotIn("assignee", data["errors"])
+
+        self.task.refresh_from_db()
+
+        self.assertEqual(
+            self.task.summary,
+            "Исходное описание",
+        )
+
+    def test_inline_update_does_not_change_task_status(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.post(
+            reverse(
+                "tracker:task-inline-update",
+                args=[self.task.id],
+            ),
+            self.get_inline_form_data(
+                self.task,
+                summary="Описание изменено",
+                status=self.second_status,
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.task.refresh_from_db()
+
+        self.assertEqual(
+            self.task.summary,
+            "Описание изменено",
+        )
+        self.assertEqual(
+            self.task.status,
+            self.status,
+        )
+
+    def test_manager_can_inline_update_any_task(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.post(
+            reverse(
+                "tracker:task-inline-update",
+                args=[self.other_task.id],
+            ),
+            self.get_inline_form_data(
+                self.other_task,
+                summary="Задача изменена менеджером",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.other_task.refresh_from_db()
+
+        self.assertEqual(
+            self.other_task.summary,
+            "Задача изменена менеджером",
+        )
+
+    def test_inline_update_requires_post(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.get(
+            reverse(
+                "tracker:task-inline-update",
+                args=[self.task.id],
+            )
+        )
+
+        self.assertEqual(response.status_code, 405)
+
+
+class TaskStatusUpdateTests(TestCase):
+    def setUp(self):
+        self.employee_role, _ = Role.objects.get_or_create(
+            code="employee",
+            defaults={"name": "Employee"},
+        )
+        self.manager_role, _ = Role.objects.get_or_create(
+            code="manager",
+            defaults={"name": "Manager"},
+        )
+
+        self.employee = User.objects.create(
+            login="status_update_employee",
+            name="Status Update Employee",
+            role=self.employee_role,
+        )
+        self.employee.set_password("test-password-123")
+        self.employee.save()
+
+        self.other_employee = User.objects.create(
+            login="status_update_other_employee",
+            name="Status Update Other Employee",
+            role=self.employee_role,
+        )
+        self.other_employee.set_password("test-password-123")
+        self.other_employee.save()
+
+        self.manager = User.objects.create(
+            login="status_update_manager",
+            name="Status Update Manager",
+            role=self.manager_role,
+        )
+        self.manager.set_password("test-password-123")
+        self.manager.save()
+
+        self.project_stream = ProjectStream.objects.create(
+            name="Стрим статусов",
+        )
+
+        self.initial_status = TaskStatus.objects.create(
+            name="Новая",
+            code="new",
+            order=1,
+            is_active=True,
+        )
+        self.active_status = TaskStatus.objects.create(
+            name="В работе",
+            code="in_progress",
+            order=2,
+            is_active=True,
+        )
+        self.inactive_status = TaskStatus.objects.create(
+            name="Архивный статус",
+            code="archived",
+            order=3,
+            is_active=False,
+        )
+
+        self.task = Task.objects.create(
+            project_stream=self.project_stream,
+            summary="Задача сотрудника",
+            external_number="RND-5000",
+            external_url=(
+                "https://youtrack.example.com/issue/RND-5000"
+            ),
+            assignee=self.employee,
+            status=self.initial_status,
+            created_by=self.employee,
+        )
+
+        self.other_task = Task.objects.create(
+            project_stream=self.project_stream,
+            summary="Задача другого сотрудника",
+            external_number="RND-6000",
+            external_url=(
+                "https://youtrack.example.com/issue/RND-6000"
+            ),
+            assignee=self.other_employee,
+            status=self.initial_status,
+            created_by=self.other_employee,
+        )
+
+    def get_status_form_data(self, task, status):
+        prefix = f"task-status-{task.id}"
+
+        return {
+            f"{prefix}-status": status.id,
+        }
+
+    def test_anonymous_user_is_redirected_to_login(self):
+        response = self.client.post(
+            reverse(
+                "tracker:task-status-update",
+                args=[self.task.id],
+            ),
+            self.get_status_form_data(
+                self.task,
+                self.active_status,
+            ),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(
+            reverse("accounts:login"),
+            response.url,
+        )
+
+    def test_employee_can_update_status_of_own_task(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.post(
+            reverse(
+                "tracker:task-status-update",
+                args=[self.task.id],
+            ),
+            self.get_status_form_data(
+                self.task,
+                self.active_status,
+            ),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+
+        self.assertTrue(data["success"])
+        self.assertEqual(
+            data["status"]["id"],
+            self.active_status.id,
+        )
+        self.assertEqual(
+            data["status"]["name"],
+            "В работе",
+        )
+        self.assertEqual(
+            data["status"]["code"],
+            "in_progress",
+        )
+        self.assertFalse(data["status"]["is_final"])
+
+        self.task.refresh_from_db()
+
+        self.assertEqual(
+            self.task.status,
+            self.active_status,
+        )
+
+    def test_status_update_does_not_change_other_task_fields(self):
+        original_summary = self.task.summary
+        original_project_stream = self.task.project_stream
+        original_assignee = self.task.assignee
+        original_external_number = self.task.external_number
+        original_external_url = self.task.external_url
+
+        self.client.force_login(self.employee)
+
+        response = self.client.post(
+            reverse(
+                "tracker:task-status-update",
+                args=[self.task.id],
+            ),
+            {
+                **self.get_status_form_data(
+                    self.task,
+                    self.active_status,
+                ),
+                "summary": "Попытка изменить описание",
+                "project_stream": 999999,
+                "assignee": self.other_employee.id,
+                "external_number": "RND-9999",
+                "external_url": (
+                    "https://youtrack.example.com/issue/RND-9999"
+                ),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.task.refresh_from_db()
+
+        self.assertEqual(
+            self.task.status,
+            self.active_status,
+        )
+        self.assertEqual(
+            self.task.summary,
+            original_summary,
+        )
+        self.assertEqual(
+            self.task.project_stream,
+            original_project_stream,
+        )
+        self.assertEqual(
+            self.task.assignee,
+            original_assignee,
+        )
+        self.assertEqual(
+            self.task.external_number,
+            original_external_number,
+        )
+        self.assertEqual(
+            self.task.external_url,
+            original_external_url,
+        )
+
+    def test_employee_cannot_update_status_of_other_users_task(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.post(
+            reverse(
+                "tracker:task-status-update",
+                args=[self.other_task.id],
+            ),
+            self.get_status_form_data(
+                self.other_task,
+                self.active_status,
+            ),
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+        self.other_task.refresh_from_db()
+
+        self.assertEqual(
+            self.other_task.status,
+            self.initial_status,
+        )
+
+    def test_manager_can_update_status_of_any_task(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.post(
+            reverse(
+                "tracker:task-status-update",
+                args=[self.other_task.id],
+            ),
+            self.get_status_form_data(
+                self.other_task,
+                self.active_status,
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.other_task.refresh_from_db()
+
+        self.assertEqual(
+            self.other_task.status,
+            self.active_status,
+        )
+
+    def test_inactive_status_is_rejected(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.post(
+            reverse(
+                "tracker:task-status-update",
+                args=[self.task.id],
+            ),
+            self.get_status_form_data(
+                self.task,
+                self.inactive_status,
+            ),
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+        data = response.json()
+
+        self.assertFalse(data["success"])
+        self.assertIn("status", data["errors"])
+
+        self.task.refresh_from_db()
+
+        self.assertEqual(
+            self.task.status,
+            self.initial_status,
+        )
+
+    def test_missing_status_returns_validation_error(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.post(
+            reverse(
+                "tracker:task-status-update",
+                args=[self.task.id],
+            ),
+            {},
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+        data = response.json()
+
+        self.assertFalse(data["success"])
+        self.assertIn("status", data["errors"])
+
+        self.task.refresh_from_db()
+
+        self.assertEqual(
+            self.task.status,
+            self.initial_status,
+        )
+
+    def test_status_update_requires_post(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.get(
+            reverse(
+                "tracker:task-status-update",
+                args=[self.task.id],
+            )
+        )
+
+        self.assertEqual(response.status_code, 405)
 
 
 class TaskArtifactAjaxTests(TestCase):
@@ -1438,7 +2445,7 @@ class TaskCreateViewTests(TestCase):
         self.assertContains(response, 'name="summary"')
         self.assertContains(response, 'name="external_number"')
         self.assertContains(response, 'name="external_url"')
-        self.assertContains(response, 'name="assignee"')
+        self.assertNotContains(response, 'name="assignee"')
         self.assertContains(response, 'name="status"')
 
     def test_valid_form_creates_task(self):
@@ -1484,7 +2491,7 @@ class TaskCreateViewTests(TestCase):
         )
         self.assertEqual(
             task.assignee,
-            self.assignee,
+            self.creator,
         )
         self.assertEqual(
             task.status,
@@ -1578,17 +2585,15 @@ class TaskCreateViewTests(TestCase):
         self.assertEqual(Task.objects.count(), 0)
         self.assertTrue(response.context["form"].errors)
 
-    def test_task_list_contains_create_task_link(self):
+    def test_task_list_contains_create_task_popup(self):
         self.client.force_login(self.creator)
 
         response = self.client.get(
             reverse("tracker:task-list")
         )
 
-        self.assertContains(
-            response,
-            f'href="{reverse("tracker:task-create")}"',
-        )
+        self.assertContains(response, 'id="create-task-button"')
+        self.assertContains(response, 'id="create-task-modal"')
         self.assertContains(response, "Создать задачу")
 
 
@@ -1901,7 +2906,7 @@ class TaskUpdateViewTests(TestCase):
         )
         self.assertEqual(
             self.task.assignee,
-            self.second_assignee,
+            self.assignee,
         )
         self.assertEqual(
             self.task.status,
@@ -2117,23 +3122,30 @@ class TaskUpdateViewTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    def test_task_list_contains_edit_link(self):
+    def test_task_list_contains_inline_edit_button(self):
         self.client.force_login(self.assignee)
 
         response = self.client.get(
             reverse("tracker:task-list")
         )
 
-        task_update_url = reverse(
-            "tracker:task-update",
+        inline_update_url = reverse(
+            "tracker:task-inline-update",
             args=[self.task.id],
         )
 
         self.assertContains(
             response,
-            f'href="{task_update_url}"',
+            "data-task-edit",
         )
-        self.assertContains(response, "Редактировать")
+        self.assertContains(
+            response,
+            f'action="{inline_update_url}"',
+        )
+        self.assertContains(
+            response,
+            "data-task-edit-form",
+        )
 
 
     def test_update_page_contains_existing_artifact(self):
@@ -2287,3 +3299,93 @@ class TaskUpdateViewTests(TestCase):
             TaskArtifact.objects.filter(id=artifact.id).exists()
         )
         self.assertTrue(Task.objects.filter(id=self.task.id).exists())
+
+class TaskPopupCreateTests(TestCase):
+    def setUp(self):
+        self.employee_role, _ = Role.objects.get_or_create(code="employee", defaults={"name": "Employee"})
+        self.manager_role, _ = Role.objects.get_or_create(code="manager", defaults={"name": "Manager"})
+        self.administrator_role, _ = Role.objects.get_or_create(code="administrator", defaults={"name": "Administrator"})
+        self.employee = User.objects.create(login="popup_employee", name="Popup Employee", role=self.employee_role)
+        self.other_employee = User.objects.create(login="popup_other", name="Popup Other", role=self.employee_role)
+        self.manager = User.objects.create(login="popup_manager", name="Popup Manager", role=self.manager_role)
+        self.administrator = User.objects.create(login="popup_admin", name="Popup Admin", role=self.administrator_role)
+        self.project_stream = ProjectStream.objects.create(name="Попап")
+        self.new_status = TaskStatus.objects.create(name="Новая", code="new", order=1, is_active=True)
+        self.other_status = TaskStatus.objects.create(name="В работе", code="in_progress", order=2, is_active=True)
+
+    def create_data(self, **overrides):
+        data = {
+            "action": "create_task",
+            "project_stream": self.project_stream.id,
+            "summary": "Задача из попапа",
+            "external_number": "RND-7777",
+            "external_url": "https://youtrack.example.com/issue/RND-7777",
+            "assignee": self.other_employee.id,
+            "status": self.other_status.id,
+        }
+        data.update(overrides)
+        return data
+
+    def test_employee_popup_does_not_render_assignee_select(self):
+        self.client.force_login(self.employee)
+        response = self.client.get(reverse("tracker:task-list"))
+        self.assertContains(response, 'id="create-task-modal"')
+        self.assertNotContains(response, 'name="assignee"')
+        self.assertContains(response, "Popup Employee")
+
+    def test_employee_creates_task_assigned_to_self_in_new_status(self):
+        self.client.force_login(self.employee)
+        response = self.client.post(reverse("tracker:task-list"), self.create_data())
+        task = Task.objects.get(summary="Задача из попапа")
+        self.assertEqual(task.assignee, self.employee)
+        self.assertEqual(task.created_by, self.employee)
+        self.assertEqual(task.status, self.new_status)
+        self.assertRedirects(response, reverse("tracker:task-list"))
+
+    def test_manager_can_choose_assignee(self):
+        self.client.force_login(self.manager)
+        self.client.post(reverse("tracker:task-list"), self.create_data())
+        task = Task.objects.get(summary="Задача из попапа")
+        self.assertEqual(task.assignee, self.other_employee)
+        self.assertEqual(task.status, self.new_status)
+
+    def test_administrator_can_choose_assignee(self):
+        self.client.force_login(self.administrator)
+        self.client.post(reverse("tracker:task-list"), self.create_data())
+        task = Task.objects.get(summary="Задача из попапа")
+        self.assertEqual(task.assignee, self.other_employee)
+        self.assertEqual(task.status, self.new_status)
+
+    def test_create_redirect_preserves_list_query_string(self):
+        self.client.force_login(self.manager)
+        url = reverse("tracker:task-list") + "?sort=number&direction=desc&show_done=1"
+        response = self.client.post(url, self.create_data())
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, url)
+
+    def test_invalid_popup_form_reopens_modal(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(reverse("tracker:task-list"), self.create_data(project_stream="", summary=""))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["open_create_modal"])
+        self.assertTrue(response.context["create_form"].errors)
+        self.assertEqual(Task.objects.count(), 0)
+
+    def test_employee_inline_edit_cannot_change_assignee(self):
+        task = Task.objects.create(project_stream=self.project_stream, summary="Своя задача", assignee=self.employee, status=self.new_status, created_by=self.employee)
+        self.client.force_login(self.employee)
+        prefix = f"task-edit-{task.id}"
+        response = self.client.post(
+            reverse("tracker:task-inline-update", args=[task.id]),
+            {
+                f"{prefix}-project_stream": self.project_stream.id,
+                f"{prefix}-summary": "Обновленная задача",
+                f"{prefix}-external_number": "",
+                f"{prefix}-external_url": "",
+                f"{prefix}-assignee": self.other_employee.id,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        task.refresh_from_db()
+        self.assertEqual(task.assignee, self.employee)
+        self.assertEqual(task.summary, "Обновленная задача")

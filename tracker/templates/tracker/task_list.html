@@ -98,8 +98,13 @@
             background: #2563eb;
         }
 
-        .primary-button:hover {
+        .primary-button:hover:not(:disabled) {
             background: #1d4ed8;
+        }
+
+        .primary-button:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
         }
 
         .secondary-button {
@@ -115,6 +120,78 @@
 
         .secondary-button:hover {
             background: #f9fafb;
+        }
+
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 42px;
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            color: #374151;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .user-menu-button:hover,
+        .user-menu-button[aria-expanded="true"] {
+            background: #f9fafb;
+        }
+
+        .user-menu-arrow {
+            width: 7px;
+            height: 7px;
+            border-right: 2px solid currentColor;
+            border-bottom: 2px solid currentColor;
+            transform: translateY(-2px) rotate(45deg);
+        }
+
+        .user-menu-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            z-index: 30;
+            min-width: 190px;
+            padding: 6px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+        }
+
+        .user-menu.open .user-menu-dropdown {
+            display: block;
+        }
+
+        .user-menu-item {
+            display: block;
+            width: 100%;
+            padding: 9px 10px;
+            border: 0;
+            border-radius: 7px;
+            color: #374151;
+            background: transparent;
+            cursor: pointer;
+            text-align: left;
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        .user-menu-item:hover:not(.disabled) {
+            background: #f3f4f6;
+        }
+
+        .user-menu-item.disabled {
+            color: #9ca3af;
+            cursor: not-allowed;
         }
 
         .toolbar {
@@ -139,6 +216,135 @@
                 minmax(310px, 0.92fr)
                 minmax(620px, 1.65fr);
             margin-bottom: 12px;
+        }
+
+        .task-list-toolbar {
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            min-width: 0;
+            padding-right: 14px;
+        }
+
+        .task-sort-select {
+            min-width: 0;
+            width: 100%;
+            height: 34px;
+            padding: 6px 34px 6px 9px;
+            border: 1px solid #d1d5db;
+            border-radius: 7px;
+            color: #374151;
+            background: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            outline: none;
+
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+        }
+
+        .task-sort-select-wrapper {
+            position: relative;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .task-sort-select-wrapper::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            right: 12px;
+            width: 7px;
+            height: 7px;
+            border-right: 2px solid #6b7280;
+            border-bottom: 2px solid #6b7280;
+            pointer-events: none;
+            transform: translateY(-65%) rotate(45deg);
+        }
+
+        .task-sort-select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .sort-direction-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            flex: 0 0 34px;
+            padding: 0;
+            border: 1px solid #d1d5db;
+            border-radius: 7px;
+            color: #374151;
+            background: #fff;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .sort-direction-button:hover {
+            background: #f9fafb;
+        }
+
+        .quick-filter {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            flex: 0 0 auto;
+            cursor: pointer;
+            color: #4b5563;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .quick-filter input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            opacity: 0;
+        }
+
+        .quick-filter-switch {
+            position: relative;
+            width: 28px;
+            height: 16px;
+            flex: 0 0 auto;
+            border-radius: 999px;
+            background: #d1d5db;
+            transition: background-color 0.15s ease;
+        }
+
+        .quick-filter-switch::after {
+            content: "";
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+            transition: transform 0.15s ease;
+        }
+
+        .quick-filter input:checked + .quick-filter-switch {
+            background: #2563eb;
+        }
+
+        .quick-filter input:checked + .quick-filter-switch::after {
+            transform: translateX(12px);
+        }
+
+        .quick-filter input:focus-visible + .quick-filter-switch {
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+        }
+
+        .quick-filter-text {
+            line-height: 1;
         }
 
         .history-toolbar {
@@ -203,11 +409,16 @@
         }
 
         .task-shell {
-            overflow: hidden;
+            position: relative;
+            overflow: visible;
             border: 1px solid #dfe3e8;
             border-radius: 14px;
             background: #fff;
             box-shadow: 0 5px 16px rgba(15, 23, 42, 0.05);
+        }
+
+        .task-shell.status-menu-open {
+            z-index: 40;
         }
 
         .task-row {
@@ -280,6 +491,118 @@
             background: #e5e7eb;
         }
 
+        .task-inline-container {
+            min-width: 0;
+        }
+
+        .task-view-mode {
+            display: block;
+        }
+
+        .task-edit-mode {
+            display: none;
+            min-width: 0;
+            margin: 0 0 18px;
+        }
+
+        .task-inline-container.is-editing .task-view-mode {
+            display: none;
+        }
+
+        .task-inline-container.is-editing .task-edit-mode {
+            display: block;
+        }
+
+        .task-edit-fields {
+            display: grid;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .task-edit-field {
+            min-width: 0;
+        }
+
+        .task-edit-field label {
+            display: block;
+            margin-bottom: 5px;
+            color: #6b7280;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+
+        .task-edit-control {
+            display: block;
+            width: 100%;
+            min-width: 0;
+            height: 36px;
+            padding: 7px 9px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            color: #1f2937;
+            background: #fff;
+            outline: none;
+        }
+
+        .task-edit-control:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .task-link-edit-fields {
+            display: grid;
+            grid-template-columns:
+                minmax(105px, 0.38fr)
+                minmax(0, 1fr);
+            gap: 8px;
+            min-width: 0;
+        }
+
+        textarea.task-summary-input {
+            height: 58px;
+            min-height: 58px;
+            max-height: 58px;
+            resize: none;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+
+        .task-edit-errors {
+            display: none;
+            margin-top: 10px;
+            padding: 9px 10px;
+            border-radius: 7px;
+            color: #b91c1c;
+            background: #fef2f2;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .task-edit-errors.visible {
+            display: block;
+        }
+
+        .task-edit-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .task-edit-actions .primary-button,
+        .task-edit-actions .secondary-button {
+            min-height: 36px;
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .task-edit-actions button:disabled {
+            opacity: 0.65;
+            cursor: wait;
+        }
+
         .task-meta {
             display: flex;
             flex-wrap: wrap;
@@ -297,9 +620,136 @@
             font-weight: 700;
         }
 
-        .badge-status {
+        .task-status-form {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            min-width: 0;
+        }
+
+        .task-status-form::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            right: 11px;
+            width: 7px;
+            height: 7px;
+            border-right: 2px solid currentColor;
+            border-bottom: 2px solid currentColor;
+            pointer-events: none;
+            transform: translateY(-65%) rotate(45deg);
+        }
+
+        .task-status-select {
+            min-height: 27px;
+            width: 220px;
+            max-width: 100%;
+            padding: 5px 34px 5px 12px;
+            border: 1px solid transparent;
+            border-radius: 999px;
+            color: #374151;
+            background: #f3f4f6;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 700;
+            outline: none;
+            text-align: center;
+
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+
+            transition:
+                background-color 0.15s ease,
+                border-color 0.15s ease,
+                color 0.15s ease;
+        }
+
+        .task-status-select[data-status-code="new"] {
+            color: #1e40af;
+            border-color: #bfdbfe;
+            background: #dbeafe;
+        }
+
+        .task-status-select[data-status-code="in_progress"] {
+            color: #166534;
+            border-color: #bbf7d0;
+            background: #dcfce7;
+        }
+
+        .task-status-select[data-status-code="in_pause"] {
+            color: #5b5475;
+            border-color: #ddd6fe;
+            background: #ede9fe;
+        }
+
+        .task-status-select[data-status-code="has_issue"] {
+            color: #991b1b;
+            border-color: #fecaca;
+            background: #fee2e2;
+        }
+
+        .task-status-select[data-status-code="awaiting_third_party"] {
             color: #92400e;
+            border-color: #fde68a;
             background: #fef3c7;
+        }
+
+        .task-status-select[data-status-code="done"] {
+            color: #115e59;
+            border-color: #99f6e4;
+            background: #ccfbf1;
+        }
+
+        .task-status-select[data-status-code="cancelled"] {
+            color: #4b5563;
+            border-color: #d1d5db;
+            background: #e5e7eb;
+        }
+
+        .task-status-select:hover:not(:disabled) {
+            filter: brightness(0.97);
+        }
+
+        .task-status-select option {
+            color: #1f2937;
+            background: #ffffff;
+            font-weight: 500;
+        }
+
+        .task-status-select:focus {
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+        }
+
+        .task-status-select:disabled {
+            opacity: 0.65;
+            cursor: wait;
+        }
+
+        .task-status-message {
+            position: absolute;
+            top: calc(100% + 5px);
+            left: 4px;
+            z-index: 2;
+            display: none;
+            padding: 4px 7px;
+            border-radius: 6px;
+            white-space: nowrap;
+            font-size: 11px;
+        }
+
+        .task-status-message.visible {
+            display: block;
+        }
+
+        .task-status-message.success {
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        .task-status-message.error {
+            color: #b91c1c;
+            background: #fee2e2;
         }
 
         .badge-assignee {
@@ -461,7 +911,9 @@
             font-weight: 700;
         }
 
-        .modal-field input {
+        .modal-field input,
+        .modal-field select,
+        .modal-field textarea {
             width: 100%;
             padding: 10px 12px;
             border: 1px solid #d1d5db;
@@ -469,9 +921,24 @@
             outline: none;
         }
 
-        .modal-field input:focus {
+        .modal-field input:focus,
+        .modal-field select:focus,
+        .modal-field textarea:focus {
             border-color: #2563eb;
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .modal-field textarea {
+            min-height: 88px;
+            resize: vertical;
+        }
+
+        .modal-readonly-value {
+            padding: 10px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            color: #374151;
+            background: #f9fafb;
         }
 
         .modal-error {
@@ -609,6 +1076,71 @@
             gap: 8px;
         }
 
+        .status-menu {
+            position: relative;
+        }
+
+        .status-menu-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            border: 1px solid #dbe3ef;
+            border-radius: 7px;
+            color: #2563eb;
+            background: #eff6ff;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .status-menu-button:hover,
+        .status-menu-button[aria-expanded="true"] {
+            background: #dbeafe;
+        }
+
+        .status-menu-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            z-index: 20;
+            min-width: 250px;
+            padding: 6px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+        }
+
+        .status-menu.open .status-menu-dropdown {
+            display: block;
+        }
+
+        .status-menu-item {
+            display: block;
+            width: 100%;
+            padding: 9px 10px;
+            border: 0;
+            border-radius: 7px;
+            color: #374151;
+            background: transparent;
+            cursor: pointer;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        .status-menu-item:hover:not(:disabled) {
+            background: #f3f4f6;
+        }
+
+        .status-menu-item:disabled {
+            color: #9ca3af;
+            cursor: not-allowed;
+        }
+
         .status-action {
             padding: 8px 12px;
             border-radius: 7px;
@@ -689,6 +1221,10 @@
                 flex-direction: column;
             }
 
+            .task-link-edit-fields {
+                grid-template-columns: 1fr;
+            }
+
             .weekly-board {
                 grid-template-columns: 1fr;
             }
@@ -716,26 +1252,47 @@
             </div>
 
             <div class="header-actions">
-                <a
+                <button
                     class="primary-button"
-                    href="{% url 'tracker:task-create' %}"
+                    id="create-task-button"
+                    type="button"
                 >
                     Создать задачу
-                </a>
+                </button>
 
-                <a
-                    class="secondary-button"
-                    href="{% url 'tracker:dashboard' %}"
-                >
-                    Рабочая область
-                </a>
+                <div class="user-menu" data-user-menu>
+                    <button
+                        class="user-menu-button"
+                        type="button"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                        data-user-menu-button
+                    >
+                        <span>{{ request.user.name }}</span>
+                        <span class="user-menu-arrow" aria-hidden="true"></span>
+                    </button>
 
-                <a
-                    class="secondary-button"
-                    href="{% url 'accounts:logout' %}"
-                >
-                    Выйти
-                </a>
+                    <div
+                        class="user-menu-dropdown"
+                        role="menu"
+                    >
+                        <a
+                            class="user-menu-item"
+                            href="{% url 'accounts:password_change' %}"
+                            role="menuitem"
+                        >
+                            Изменить пароль
+                        </a>
+
+                        <a
+                            class="user-menu-item"
+                            href="{% url 'accounts:logout' %}"
+                            role="menuitem"
+                        >
+                            Выйти
+                        </a>
+                    </div>
+                </div>
             </div>
             </header>
 
@@ -748,8 +1305,91 @@
                 >
             </section>
 
-            {% if tasks %}
-                <section class="list-controls">
+            <section class="list-controls">
+                <form
+                    class="task-list-toolbar"
+                    method="get"
+                    id="task-list-controls"
+                >
+                    <div class="task-sort-select-wrapper">
+                        <select
+                            class="task-sort-select"
+                            name="sort"
+                            id="task-sort"
+                            aria-label="Сортировка задач"
+                        >
+                            <option
+                                value="project"
+                                {% if selected_sort == "project" %}selected{% endif %}
+                            >
+                                По проекту
+                            </option>
+
+                            <option
+                                value="number"
+                                {% if selected_sort == "number" %}selected{% endif %}
+                            >
+                                По номеру
+                            </option>
+
+                            <option
+                                value="summary"
+                                {% if selected_sort == "summary" %}selected{% endif %}
+                            >
+                                По описанию
+                            </option>
+                        </select>
+                    </div>
+
+                    <input
+                        type="hidden"
+                        name="direction"
+                        id="sort-direction"
+                        value="{{ sort_direction }}"
+                    >
+
+                    <button
+                        class="sort-direction-button"
+                        id="sort-direction-button"
+                        type="button"
+                        title="Изменить направление сортировки"
+                        aria-label="Изменить направление сортировки"
+                    >
+                        {% if sort_direction == "desc" %}↓{% else %}↑{% endif %}
+                    </button>
+
+                    <label class="quick-filter">
+                        <input
+                            type="checkbox"
+                            name="show_done"
+                            value="1"
+                            {% if show_done %}checked{% endif %}
+                        >
+
+                        <span class="quick-filter-switch"></span>
+
+                        <span class="quick-filter-text">
+                            Завершенные
+                        </span>
+                    </label>
+
+                    <label class="quick-filter">
+                        <input
+                            type="checkbox"
+                            name="show_cancelled"
+                            value="1"
+                            {% if show_cancelled %}checked{% endif %}
+                        >
+
+                        <span class="quick-filter-switch"></span>
+
+                        <span class="quick-filter-text">
+                            Отмененные
+                        </span>
+                    </label>
+                </form>
+
+                {% if tasks %}
                     <div class="history-toolbar">
                         <div class="history-toolbar-inner">
                             <button
@@ -779,8 +1419,8 @@
                             </button>
                         </div>
                     </div>
-                </section>
-            {% endif %}
+                {% endif %}
+            </section>
         </div>
 
         <div class="tasks-scroll">
@@ -798,56 +1438,191 @@
                     >
                         <div class="task-row">
                             <section class="task-card">
-                                <div class="task-card-header">
-                                    <div>
-                                        <div class="task-project">
-                                            {{ task.project_stream.name }}
+                                <div
+                                    class="task-inline-container"
+                                    data-task-inline-container
+                                >
+                                    <div
+                                        class="task-view-mode"
+                                        data-task-view-mode
+                                    >
+                                        <div class="task-card-header">
+                                            <div>
+                                                <div
+                                                    class="task-project"
+                                                    data-task-project
+                                                >
+                                                    {{ task.project_stream.name }}
+                                                </div>
+
+                                                <div data-task-link-container>
+                                                    {% if task.external_number %}
+                                                        {% if task.external_url %}
+                                                            <a
+                                                                class="task-link"
+                                                                href="{{ task.external_url }}"
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                data-task-link
+                                                            >
+                                                                <span data-task-number>
+                                                                    {{ task.external_number }}
+                                                                </span>
+                                                                ↗
+                                                            </a>
+                                                        {% else %}
+                                                            <span
+                                                                class="task-number"
+                                                                data-task-number
+                                                            >
+                                                                {{ task.external_number }}
+                                                            </span>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <span
+                                                            class="task-number"
+                                                            data-task-number
+                                                        >
+                                                            Без внешнего номера
+                                                        </span>
+                                                    {% endif %}
+                                                </div>
+
+                                                <p
+                                                    class="task-description"
+                                                    data-task-summary
+                                                >
+                                                    {{ task.summary }}
+                                                </p>
+                                            </div>
+
+                                            <button
+                                                class="icon-button"
+                                                type="button"
+                                                title="Редактировать задачу"
+                                                aria-label="Редактировать задачу"
+                                                data-task-edit
+                                            >
+                                                ✎
+                                            </button>
                                         </div>
 
-                                        {% if task.external_number %}
-                                            {% if task.external_url %}
-                                                <a
-                                                    class="task-link"
-                                                    href="{{ task.external_url }}"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                >
-                                                    {{ task.external_number }} ↗
-                                                </a>
-                                            {% else %}
-                                                <span class="task-number">
-                                                    {{ task.external_number }}
-                                                </span>
-                                            {% endif %}
-                                        {% else %}
-                                            <span class="task-number">
-                                                Без внешнего номера
-                                            </span>
-                                        {% endif %}
+                                        <div class="task-meta">
+                                            <form
+                                                class="task-status-form"
+                                                method="post"
+                                                action="{% url 'tracker:task-status-update' task.id %}"
+                                                data-task-status-form
+                                            >
+                                                {% csrf_token %}
 
-                                        <p class="task-description">
-                                            {{ task.summary }}
-                                        </p>
+                                                {{ task.status_update_form.status }}
+
+                                                <span
+                                                    class="task-status-message"
+                                                    data-task-status-message
+                                                    aria-live="polite"
+                                                ></span>
+                                            </form>
+
+                                            <span
+                                                class="badge badge-assignee"
+                                                data-task-assignee
+                                            >
+                                                {{ task.assignee.name }}
+                                            </span>
+                                        </div>
                                     </div>
 
-                                    <a
-                                        class="icon-button"
-                                        href="{% url 'tracker:task-update' task.id %}"
-                                        title="Редактировать задачу"
-                                        aria-label="Редактировать задачу"
+                                    <form
+                                        class="task-edit-mode"
+                                        method="post"
+                                        action="{% url 'tracker:task-inline-update' task.id %}"
+                                        data-task-edit-form
                                     >
-                                        ✎
-                                    </a>
-                                </div>
+                                        {% csrf_token %}
 
-                                <div class="task-meta">
-                                    <span class="badge badge-status">
-                                        {{ task.status.name }}
-                                    </span>
+                                        <div class="task-edit-header">
+                                            <div class="task-edit-fields">
+                                                <div class="task-edit-field">
+                                                    <label
+                                                        for="{{ task.inline_edit_form.project_stream.id_for_label }}"
+                                                    >
+                                                        Стрим / проект
+                                                    </label>
 
-                                    <span class="badge badge-assignee">
-                                        {{ task.assignee.name }}
-                                    </span>
+                                                    {{ task.inline_edit_form.project_stream }}
+                                                </div>
+
+                                                <div class="task-link-edit-fields">
+                                                    <div class="task-edit-field">
+                                                        <label
+                                                            for="{{ task.inline_edit_form.external_number.id_for_label }}"
+                                                        >
+                                                            Номер
+                                                        </label>
+
+                                                        {{ task.inline_edit_form.external_number }}
+                                                    </div>
+
+                                                    <div class="task-edit-field">
+                                                        <label
+                                                            for="{{ task.inline_edit_form.external_url.id_for_label }}"
+                                                        >
+                                                            Ссылка
+                                                        </label>
+
+                                                        {{ task.inline_edit_form.external_url }}
+                                                    </div>
+                                                </div>
+
+                                                <div class="task-edit-field">
+                                                    <label
+                                                        for="{{ task.inline_edit_form.summary.id_for_label }}"
+                                                    >
+                                                        Описание
+                                                    </label>
+
+                                                    {{ task.inline_edit_form.summary }}
+                                                </div>
+
+                                                <div class="task-edit-field">
+                                                    <label>Ответственный</label>
+
+                                                    {% if request.user.role.code == "employee" %}
+                                                        <div class="modal-readonly-value">
+                                                            {{ task.assignee.name }}
+                                                        </div>
+                                                    {% else %}
+                                                        {{ task.inline_edit_form.assignee }}
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            class="task-edit-errors"
+                                            data-task-edit-errors
+                                        ></div>
+
+                                        <div class="task-edit-actions">
+                                            <button
+                                                class="secondary-button"
+                                                type="button"
+                                                data-task-edit-cancel
+                                            >
+                                                Отмена
+                                            </button>
+
+                                            <button
+                                                class="primary-button"
+                                                type="submit"
+                                                data-task-edit-save
+                                            >
+                                                Сохранить
+                                            </button>
+                                        </div>
+                                    </form>
                                 </div>
 
                                 <div class="artifacts-section">
@@ -934,7 +1709,10 @@
                                     >{% if task.previous_weekly_status %}{{ task.previous_weekly_status.text }}{% else %}Статус за выбранную неделю не добавлен.{% endif %}</p>
                                 </div>
 
-                                <div class="week-column current">
+                                <div
+                                    class="week-column current"
+                                    data-has-current-status="{% if task.current_weekly_status %}true{% else %}false{% endif %}"
+                                >
                                     <div class="week-heading">
                                         <div>
                                             <div class="week-kicker">
@@ -973,6 +1751,43 @@
                                                     Добавить статус
                                                 {% endif %}
                                             </button>
+
+                                            <div class="status-menu" data-status-menu>
+                                                <button
+                                                    class="status-menu-button"
+                                                    type="button"
+                                                    title="Дополнительные действия"
+                                                    aria-label="Дополнительные действия со статусом"
+                                                    aria-expanded="false"
+                                                    data-status-menu-button
+                                                >
+                                                    ⋯
+                                                </button>
+
+                                                <div
+                                                    class="status-menu-dropdown"
+                                                    role="menu"
+                                                >
+                                                    <button
+                                                        class="status-menu-item"
+                                                        type="button"
+                                                        role="menuitem"
+                                                        data-status-copy-previous
+                                                        {% if not task.previous_weekly_status %}disabled{% endif %}
+                                                    >
+                                                        Скопировать с прошлой недели
+                                                    </button>
+
+                                                    <button
+                                                        class="status-menu-item"
+                                                        type="button"
+                                                        role="menuitem"
+                                                        data-status-insert-empty
+                                                    >
+                                                        Вставить «Обновлений нет»
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1033,6 +1848,86 @@
         </div>
     </main>
 
+
+    <div
+        class="modal-backdrop{% if open_create_modal %} open{% endif %}"
+        id="create-task-modal"
+        aria-hidden="{% if open_create_modal %}false{% else %}true{% endif %}"
+    >
+        <div
+            class="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-task-modal-title"
+        >
+            <div class="modal-header">
+                <h2 class="modal-title" id="create-task-modal-title">
+                    Создать задачу
+                </h2>
+
+                <button
+                    class="modal-close"
+                    type="button"
+                    aria-label="Закрыть"
+                    data-create-task-close
+                >×</button>
+            </div>
+
+            <form method="post" id="create-task-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_task">
+
+                <div class="modal-body">
+                    {% if create_form.non_field_errors %}
+                        <div class="form-errors">{{ create_form.non_field_errors }}</div>
+                    {% endif %}
+
+                    <div class="modal-field">
+                        <label for="{{ create_form.project_stream.id_for_label }}">Стрим / проект</label>
+                        {{ create_form.project_stream }}
+                        <div class="modal-error">{{ create_form.project_stream.errors }}</div>
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="{{ create_form.external_number.id_for_label }}">Номер</label>
+                        {{ create_form.external_number }}
+                        <div class="modal-error">{{ create_form.external_number.errors }}</div>
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="{{ create_form.external_url.id_for_label }}">Ссылка</label>
+                        {{ create_form.external_url }}
+                        <div class="modal-error">{{ create_form.external_url.errors }}</div>
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="{{ create_form.summary.id_for_label }}">Описание</label>
+                        {{ create_form.summary }}
+                        <div class="modal-error">{{ create_form.summary.errors }}</div>
+                    </div>
+
+                    <div class="modal-field">
+                        <label>Ответственный</label>
+                        {% if request.user.role.code == "employee" %}
+                            <div class="modal-readonly-value">{{ request.user.name }}</div>
+                        {% else %}
+                            {{ create_form.assignee }}
+                            <div class="modal-error">{{ create_form.assignee.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="secondary-button" type="button" data-create-task-close>
+                        Отмена
+                    </button>
+                    <button class="primary-button" type="submit">
+                        Создать
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <div
         class="modal-backdrop"
@@ -1197,7 +2092,461 @@
         </div>
     </div>
 
+    <div
+        class="modal-backdrop"
+        id="status-replace-modal"
+        aria-hidden="true"
+    >
+        <div
+            class="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="status-replace-modal-title"
+        >
+            <div class="modal-header">
+                <h2
+                    class="modal-title"
+                    id="status-replace-modal-title"
+                >
+                    Заменить текущий статус?
+                </h2>
+
+                <button
+                    class="modal-close"
+                    type="button"
+                    aria-label="Закрыть"
+                    data-status-replace-close
+                >
+                    ×
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <p class="confirmation-text" id="status-replace-text">
+                    Текущий текст в поле редактирования будет заменён.
+                </p>
+            </div>
+
+            <div class="modal-actions">
+                <button
+                    class="secondary-button"
+                    type="button"
+                    data-status-replace-close
+                >
+                    Отмена
+                </button>
+
+                <button
+                    class="primary-button"
+                    id="status-replace-confirm"
+                    type="button"
+                >
+                    Заменить
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        const createTaskButton = document.getElementById("create-task-button");
+        const createTaskModal = document.getElementById("create-task-modal");
+        const createTaskForm = document.getElementById("create-task-form");
+
+        function isAnyTaskEditorOpen() {
+            return Boolean(
+                document.querySelector("[data-task-inline-container].is-editing")
+                || document.querySelector("[data-status-editor].open")
+            );
+        }
+
+        function updateCreateTaskButtonState() {
+            createTaskButton.disabled = isAnyTaskEditorOpen();
+            createTaskButton.title = createTaskButton.disabled
+                ? "Сначала сохраните или отмените текущее редактирование"
+                : "";
+        }
+
+        function openCreateTaskModal() {
+            if (isAnyTaskEditorOpen()) {
+                updateCreateTaskButtonState();
+                return;
+            }
+
+            createTaskModal.classList.add("open");
+            createTaskModal.setAttribute("aria-hidden", "false");
+            const firstControl = createTaskForm.querySelector("select, input:not([type='hidden']), textarea");
+            if (firstControl) {
+                firstControl.focus();
+            }
+        }
+
+        function closeCreateTaskModal() {
+            createTaskModal.classList.remove("open");
+            createTaskModal.setAttribute("aria-hidden", "true");
+        }
+
+        createTaskButton.addEventListener("click", openCreateTaskModal);
+        document.querySelectorAll("[data-create-task-close]").forEach((button) => {
+            button.addEventListener("click", closeCreateTaskModal);
+        });
+        createTaskModal.addEventListener("click", (event) => {
+            if (event.target === createTaskModal) {
+                closeCreateTaskModal();
+            }
+        });
+        createTaskForm.addEventListener("submit", () => {
+            if (typeof saveTaskListState === "function") {
+                saveTaskListState();
+            }
+        });
+
+        const editorStateObserver = new MutationObserver(updateCreateTaskButtonState);
+        editorStateObserver.observe(document.body, {
+            subtree: true,
+            attributes: true,
+            attributeFilter: ["class", "style"],
+        });
+        updateCreateTaskButtonState();
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && createTaskModal.classList.contains("open")) {
+                closeCreateTaskModal();
+            }
+        });
+
+        const userMenu = document.querySelector("[data-user-menu]");
+        const userMenuButton = document.querySelector(
+            "[data-user-menu-button]"
+        );
+
+        function closeUserMenu() {
+            if (!userMenu || !userMenuButton) {
+                return;
+            }
+
+            userMenu.classList.remove("open");
+            userMenuButton.setAttribute("aria-expanded", "false");
+        }
+
+        if (userMenu && userMenuButton) {
+            userMenuButton.addEventListener("click", (event) => {
+                event.stopPropagation();
+
+                const willOpen = !userMenu.classList.contains("open");
+                userMenu.classList.toggle("open", willOpen);
+                userMenuButton.setAttribute(
+                    "aria-expanded",
+                    willOpen ? "true" : "false"
+                );
+            });
+
+            userMenu.addEventListener("click", (event) => {
+                event.stopPropagation();
+            });
+
+            document.addEventListener("click", closeUserMenu);
+
+            document.addEventListener("keydown", (event) => {
+                if (event.key === "Escape") {
+                    closeUserMenu();
+                    userMenuButton.focus();
+                }
+            });
+        }
+
+        document.querySelectorAll(
+            "[data-task-status-form]"
+        ).forEach((statusForm) => {
+            const select = statusForm.querySelector(
+                ".task-status-select"
+            );
+            const message = statusForm.querySelector(
+                "[data-task-status-message]"
+            );
+
+            let savedValue = select.value;
+            let messageTimer = null;
+
+            function showStatusMessage(text, type) {
+                window.clearTimeout(messageTimer);
+
+                message.textContent = text;
+                message.className =
+                    `task-status-message visible ${type}`;
+
+                messageTimer = window.setTimeout(() => {
+                    message.textContent = "";
+                    message.className = "task-status-message";
+                }, 1800);
+            }
+
+            select.addEventListener("change", async () => {
+                const selectedValue = select.value;
+                const formData = new FormData(statusForm);
+
+                select.disabled = true;
+
+                try {
+                    const response = await fetch(
+                        statusForm.action,
+                        {
+                            method: "POST",
+                            body: formData,
+                            headers: {
+                                "X-Requested-With": "XMLHttpRequest",
+                            },
+                        }
+                    );
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        select.value = savedValue;
+
+                        const errorMessages = [];
+
+                        if (data.errors) {
+                            Object.values(data.errors).forEach(
+                                (errors) => {
+                                    errors.forEach((error) => {
+                                        errorMessages.push(
+                                            error.message
+                                        );
+                                    });
+                                }
+                            );
+                        }
+
+                        throw new Error(
+                            errorMessages.join(" ")
+                            || "Не удалось изменить состояние."
+                        );
+                    }
+
+                    savedValue = String(data.status.id);
+                    select.value = savedValue;
+                    select.dataset.statusCode = data.status.code;
+
+                    showStatusMessage(
+                        "Сохранено",
+                        "success"
+                    );
+                } catch (error) {
+                    select.value = savedValue;
+
+                    showStatusMessage(
+                        error.message,
+                        "error"
+                    );
+                } finally {
+                    select.disabled = false;
+                }
+            });
+        });
+        document.querySelectorAll(
+            "[data-task-inline-container]"
+        ).forEach((container) => {
+            const editButton = container.querySelector(
+                "[data-task-edit]"
+            );
+            const editForm = container.querySelector(
+                "[data-task-edit-form]"
+            );
+            const cancelButton = container.querySelector(
+                "[data-task-edit-cancel]"
+            );
+            const errorContainer = container.querySelector(
+                "[data-task-edit-errors]"
+            );
+            const controls = Array.from(
+                editForm.querySelectorAll(
+                    "input:not([type='hidden']), select, textarea"
+                )
+            );
+
+            let originalValues = {};
+
+            function saveOriginalValues() {
+                originalValues = {};
+
+                controls.forEach((control) => {
+                    originalValues[control.name] = control.value;
+                });
+            }
+
+            function restoreOriginalValues() {
+                controls.forEach((control) => {
+                    if (
+                        Object.prototype.hasOwnProperty.call(
+                            originalValues,
+                            control.name
+                        )
+                    ) {
+                        control.value = originalValues[control.name];
+                    }
+                });
+            }
+
+            function clearEditErrors() {
+                errorContainer.textContent = "";
+                errorContainer.classList.remove("visible");
+
+                controls.forEach((control) => {
+                    control.removeAttribute("aria-invalid");
+                });
+            }
+
+            function openEditMode() {
+                saveOriginalValues();
+                clearEditErrors();
+                container.classList.add("is-editing");
+
+                const firstControl = controls[0];
+
+                if (firstControl) {
+                    firstControl.focus();
+                }
+            }
+
+            function closeEditMode() {
+                restoreOriginalValues();
+                clearEditErrors();
+                container.classList.remove("is-editing");
+            }
+
+            editButton.addEventListener("click", openEditMode);
+            cancelButton.addEventListener("click", closeEditMode);
+            editForm.addEventListener("submit", async (event) => {
+                event.preventDefault();
+
+                clearEditErrors();
+
+                const saveButton = editForm.querySelector(
+                    "[data-task-edit-save]"
+                );
+
+                saveButton.disabled = true;
+
+                try {
+                    const response = await fetch(editForm.action, {
+                        method: "POST",
+                        body: new FormData(editForm),
+                        headers: {
+                            "X-Requested-With": "XMLHttpRequest",
+                        },
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        if (data.errors) {
+                            const messages = [];
+
+                            Object.entries(data.errors).forEach(
+                                ([fieldName, errors]) => {
+                                    const control = editForm.querySelector(
+                                        `[name$="-${fieldName}"]`
+                                    );
+
+                                    if (control) {
+                                        control.setAttribute(
+                                            "aria-invalid",
+                                            "true"
+                                        );
+                                    }
+
+                                    errors.forEach((error) => {
+                                        messages.push(error.message);
+                                    });
+                                }
+                            );
+
+                            errorContainer.textContent =
+                                messages.join(" ");
+                            errorContainer.classList.add("visible");
+                        } else {
+                            errorContainer.textContent =
+                                "Не удалось сохранить изменения.";
+                            errorContainer.classList.add("visible");
+                        }
+
+                        return;
+                    }
+
+                    const task = data.task;
+                    const taskShell = container.closest(".task-shell");
+                    const projectElement = container.querySelector(
+                        "[data-task-project]"
+                    );
+                    const summaryElement = container.querySelector(
+                        "[data-task-summary]"
+                    );
+                    const assigneeElement = container.querySelector(
+                        "[data-task-assignee]"
+                    );
+                    const linkContainer = container.querySelector(
+                        "[data-task-link-container]"
+                    );
+
+                    projectElement.textContent =
+                        task.project_stream.name;
+                    summaryElement.textContent = task.summary;
+                    assigneeElement.textContent = task.assignee.name;
+
+                    linkContainer.replaceChildren();
+
+                    if (task.external_number) {
+                        if (task.external_url) {
+                            const link = document.createElement("a");
+                            const number = document.createElement("span");
+
+                            link.className = "task-link";
+                            link.href = task.external_url;
+                            link.target = "_blank";
+                            link.rel = "noopener noreferrer";
+                            link.dataset.taskLink = "";
+
+                            number.dataset.taskNumber = "";
+                            number.textContent = task.external_number;
+
+                            link.append(number, " ↗");
+                            linkContainer.append(link);
+                        } else {
+                            const number = document.createElement("span");
+
+                            number.className = "task-number";
+                            number.dataset.taskNumber = "";
+                            number.textContent = task.external_number;
+
+                            linkContainer.append(number);
+                        }
+                    } else {
+                        const number = document.createElement("span");
+
+                        number.className = "task-number";
+                        number.dataset.taskNumber = "";
+                        number.textContent = "Без внешнего номера";
+
+                        linkContainer.append(number);
+                    }
+
+                    taskShell.dataset.searchText = `
+                        ${task.external_number}
+                        ${task.summary}
+                        ${task.project_stream.name}
+                    `;
+
+                    saveOriginalValues();
+                    container.classList.remove("is-editing");
+                } catch (error) {
+                    errorContainer.textContent =
+                        "Произошла ошибка при сохранении задачи.";
+                    errorContainer.classList.add("visible");
+                } finally {
+                    saveButton.disabled = false;
+                }
+            });
+        });
         const artifactModal = document.getElementById(
             "artifact-modal"
         );
@@ -1545,8 +2894,84 @@
             }
         );
 
+        const statusReplaceModal = document.getElementById(
+            "status-replace-modal"
+        );
+        const statusReplaceText = document.getElementById(
+            "status-replace-text"
+        );
+        const statusReplaceConfirm = document.getElementById(
+            "status-replace-confirm"
+        );
+        let pendingStatusReplacement = null;
+
+        function closeStatusReplaceModal() {
+            statusReplaceModal.classList.remove("open");
+            statusReplaceModal.setAttribute("aria-hidden", "true");
+            pendingStatusReplacement = null;
+        }
+
+        function openStatusReplaceModal(message, action) {
+            statusReplaceText.textContent = message;
+            pendingStatusReplacement = action;
+            statusReplaceModal.classList.add("open");
+            statusReplaceModal.setAttribute("aria-hidden", "false");
+            statusReplaceConfirm.focus();
+        }
+
+        document.querySelectorAll(
+            "[data-status-replace-close]"
+        ).forEach((button) => {
+            button.addEventListener(
+                "click",
+                closeStatusReplaceModal
+            );
+        });
+
+        statusReplaceModal.addEventListener("click", (event) => {
+            if (event.target === statusReplaceModal) {
+                closeStatusReplaceModal();
+            }
+        });
+
+        statusReplaceConfirm.addEventListener("click", () => {
+            if (pendingStatusReplacement) {
+                pendingStatusReplacement();
+            }
+
+            closeStatusReplaceModal();
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (
+                event.key === "Escape"
+                && statusReplaceModal.classList.contains("open")
+            ) {
+                closeStatusReplaceModal();
+            }
+        });
+
+        function closeAllStatusMenus(exceptMenu = null) {
+            document.querySelectorAll("[data-status-menu]").forEach(
+                (menu) => {
+                    if (menu !== exceptMenu) {
+                        menu.classList.remove("open");
+                        const shell = menu.closest(".task-shell");
+                        if (shell) {
+                            shell.classList.remove("status-menu-open");
+                        }
+                        const button = menu.querySelector(
+                            "[data-status-menu-button]"
+                        );
+                        button.setAttribute("aria-expanded", "false");
+                    }
+                }
+            );
+        }
+
         document.querySelectorAll(".week-column.current").forEach(
             (column) => {
+                const taskShell = column.closest(".task-shell");
                 const display = column.querySelector(
                     "[data-status-display]"
                 );
@@ -1560,47 +2985,382 @@
                     "[data-status-cancel]"
                 );
                 const textarea = editor.querySelector("textarea");
+                const menu = column.querySelector("[data-status-menu]");
+                const menuButton = column.querySelector(
+                    "[data-status-menu-button]"
+                );
+                const copyButton = column.querySelector(
+                    "[data-status-copy-previous]"
+                );
+                const insertEmptyButton = column.querySelector(
+                    "[data-status-insert-empty]"
+                );
+                const previousStatusElement = taskShell.querySelector(
+                    "[data-previous-status]"
+                );
+                let savedTextareaValue = textarea.value;
+
+                function openEditorWithText(text) {
+                    textarea.value = text;
+                    display.style.display = "none";
+                    editor.classList.add("open");
+                    textarea.focus();
+                    textarea.setSelectionRange(
+                        textarea.value.length,
+                        textarea.value.length
+                    );
+                }
+
+                function requestReplacement(text, sourceLabel) {
+                    const applyReplacement = () => {
+                        openEditorWithText(text);
+                    };
+
+                    if (column.dataset.hasCurrentStatus === "true") {
+                        openStatusReplaceModal(
+                            `Текущий статус будет заменён значением ${sourceLabel}. Изменения не сохранятся автоматически.`,
+                            applyReplacement
+                        );
+                    } else {
+                        applyReplacement();
+                    }
+                }
 
                 if (editor.classList.contains("open")) {
                     display.style.display = "none";
                 }
 
                 editButton.addEventListener("click", () => {
+                    savedTextareaValue = textarea.value;
                     display.style.display = "none";
                     editor.classList.add("open");
                     textarea.focus();
                 });
 
                 cancelButton.addEventListener("click", () => {
+                    textarea.value = savedTextareaValue;
                     editor.classList.remove("open");
                     display.style.display = "block";
+                });
+
+                menuButton.addEventListener("click", (event) => {
+                    event.stopPropagation();
+                    const willOpen = !menu.classList.contains("open");
+                    closeAllStatusMenus(menu);
+                    menu.classList.toggle("open", willOpen);
+                    taskShell.classList.toggle(
+                        "status-menu-open",
+                        willOpen
+                    );
+                    menuButton.setAttribute(
+                        "aria-expanded",
+                        willOpen ? "true" : "false"
+                    );
+                });
+
+                copyButton.addEventListener("click", () => {
+                    if (copyButton.disabled) {
+                        return;
+                    }
+
+                    const previousText = previousStatusElement.textContent
+                        .trim();
+                    menu.classList.remove("open");
+                    taskShell.classList.remove("status-menu-open");
+                    menuButton.setAttribute("aria-expanded", "false");
+                    requestReplacement(
+                        previousText,
+                        "статуса прошлой недели"
+                    );
+                });
+
+                insertEmptyButton.addEventListener("click", () => {
+                    menu.classList.remove("open");
+                    taskShell.classList.remove("status-menu-open");
+                    menuButton.setAttribute("aria-expanded", "false");
+                    requestReplacement(
+                        "Обновлений нет",
+                        "Обновлений нет"
+                    );
+                });
+
+                editor.addEventListener("submit", async (event) => {
+                    event.preventDefault();
+
+                    const saveButton = editor.querySelector(
+                        ".status-action.save"
+                    );
+                    const statusText = textarea.value.trim();
+
+                    if (!statusText) {
+                        textarea.focus();
+                        return;
+                    }
+
+                    saveButton.disabled = true;
+
+                    try {
+                        const response = await fetch(
+                            window.location.href,
+                            {
+                                method: "POST",
+                                body: new FormData(editor),
+                                headers: {
+                                    "X-Requested-With": "XMLHttpRequest",
+                                },
+                            }
+                        );
+
+                        if (!response.ok) {
+                            throw new Error(
+                                "Не удалось сохранить статус."
+                            );
+                        }
+
+                        const statusParagraph = display.querySelector(
+                            ".status-text"
+                        );
+
+                        statusParagraph.textContent = statusText;
+                        statusParagraph.classList.remove("status-empty");
+                        editButton.textContent = "Редактировать";
+                        column.dataset.hasCurrentStatus = "true";
+                        savedTextareaValue = statusText;
+
+                        editor.classList.remove("open");
+                        display.style.display = "block";
+                    } catch (error) {
+                        window.alert(error.message);
+                    } finally {
+                        saveButton.disabled = false;
+                    }
                 });
             }
         );
 
+        document.addEventListener("click", () => {
+            closeAllStatusMenus();
+        });
+
         const searchInput = document.getElementById("task-search");
+        const taskListControls = document.getElementById(
+            "task-list-controls"
+        );
+        const taskSortSelect = document.getElementById(
+            "task-sort"
+        );
+        const sortDirectionInput = document.getElementById(
+            "sort-direction"
+        );
+        const sortDirectionButton = document.getElementById(
+            "sort-direction-button"
+        );
+        const showDoneCheckbox = taskListControls.querySelector(
+            'input[name="show_done"]'
+        );
+        const showCancelledCheckbox = taskListControls.querySelector(
+            'input[name="show_cancelled"]'
+        );
+
+        const taskListStateKey =
+            "tracker-task-list-state:"
+            + window.location.pathname
+            + ":{{ request.user.id }}";
+
+        function readTaskListState() {
+            try {
+                const savedState = window.sessionStorage.getItem(
+                    taskListStateKey
+                );
+
+                return savedState
+                    ? JSON.parse(savedState)
+                    : null;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function saveTaskListState() {
+            const state = {
+                sort: taskSortSelect.value,
+                direction: sortDirectionInput.value,
+                showDone: showDoneCheckbox.checked,
+                showCancelled: showCancelledCheckbox.checked,
+                search: searchInput ? searchInput.value : "",
+            };
+
+            try {
+                window.sessionStorage.setItem(
+                    taskListStateKey,
+                    JSON.stringify(state)
+                );
+            } catch (error) {
+                // Работа страницы не должна зависеть от sessionStorage.
+            }
+        }
+
+        function applyTextFilter() {
+            if (!searchInput) {
+                return;
+            }
+
+            const query = searchInput.value
+                .trim()
+                .toLowerCase();
+
+            document.querySelectorAll(".task-shell").forEach(
+                (taskCard) => {
+                    const searchableText = taskCard.dataset
+                        .searchText
+                        .toLowerCase();
+
+                    taskCard.style.display =
+                        searchableText.includes(query)
+                            ? ""
+                            : "none";
+                }
+            );
+        }
+
+        function buildControlsUrl(state) {
+            const url = new URL(window.location.href);
+
+            url.searchParams.set("sort", state.sort);
+            url.searchParams.set(
+                "direction",
+                state.direction
+            );
+
+            if (state.showDone) {
+                url.searchParams.set("show_done", "1");
+            } else {
+                url.searchParams.delete("show_done");
+            }
+
+            if (state.showCancelled) {
+                url.searchParams.set(
+                    "show_cancelled",
+                    "1"
+                );
+            } else {
+                url.searchParams.delete(
+                    "show_cancelled"
+                );
+            }
+
+            url.searchParams.delete("format");
+
+            return url;
+        }
+
+        function restoreTaskListState() {
+            const savedState = readTaskListState();
+
+            if (!savedState) {
+                saveTaskListState();
+                return;
+            }
+
+            if (searchInput) {
+                searchInput.value =
+                    typeof savedState.search === "string"
+                        ? savedState.search
+                        : "";
+                applyTextFilter();
+            }
+
+            const normalizedState = {
+                sort: savedState.sort || "project",
+                direction:
+                    savedState.direction === "desc"
+                        ? "desc"
+                        : "asc",
+                showDone: Boolean(savedState.showDone),
+                showCancelled: Boolean(
+                    savedState.showCancelled
+                ),
+                search:
+                    typeof savedState.search === "string"
+                        ? savedState.search
+                        : "",
+            };
+
+            const controlsDiffer =
+                taskSortSelect.value
+                    !== normalizedState.sort
+                || sortDirectionInput.value
+                    !== normalizedState.direction
+                || showDoneCheckbox.checked
+                    !== normalizedState.showDone
+                || showCancelledCheckbox.checked
+                    !== normalizedState.showCancelled;
+
+            if (controlsDiffer) {
+                window.location.replace(
+                    buildControlsUrl(
+                        normalizedState
+                    ).toString()
+                );
+                return;
+            }
+
+        }
 
         if (searchInput) {
             searchInput.addEventListener("input", () => {
-                const query = searchInput.value
-                    .trim()
-                    .toLowerCase();
-
-                document.querySelectorAll(".task-shell").forEach(
-                    (taskCard) => {
-                        const searchableText = taskCard.dataset
-                            .searchText
-                            .toLowerCase();
-
-                        taskCard.style.display =
-                            searchableText.includes(query)
-                                ? ""
-                                : "none";
-                    }
-                );
+                applyTextFilter();
+                saveTaskListState();
             });
         }
 
+        function submitTaskListControls() {
+            saveTaskListState();
+
+            const url = new URL(window.location.href);
+            const formData = new FormData(taskListControls);
+
+            url.searchParams.delete("sort");
+            url.searchParams.delete("direction");
+            url.searchParams.delete("show_done");
+            url.searchParams.delete("show_cancelled");
+            url.searchParams.delete("format");
+
+            formData.forEach((value, name) => {
+                url.searchParams.set(name, value);
+            });
+
+            window.location.href = url.toString();
+        }
+
+        taskSortSelect.addEventListener(
+            "change",
+            submitTaskListControls
+        );
+
+        taskListControls.querySelectorAll(
+            'input[type="checkbox"]'
+        ).forEach((checkbox) => {
+            checkbox.addEventListener(
+                "change",
+                submitTaskListControls
+            );
+        });
+
+        sortDirectionButton.addEventListener("click", () => {
+            const newDirection =
+                sortDirectionInput.value === "asc"
+                    ? "desc"
+                    : "asc";
+
+            sortDirectionInput.value = newDirection;
+            sortDirectionButton.textContent =
+                newDirection === "desc" ? "↓" : "↑";
+
+            submitTaskListControls();
+        });
+
+        restoreTaskListState();
         const olderWeekButton = document.getElementById(
             "older-week-button"
         );
@@ -1655,6 +3415,10 @@
                         dateElement.textContent =
                             `с ${data.previous_week_label}`;
 
+                        const copyPreviousButton = taskCard.querySelector(
+                            "[data-status-copy-previous]"
+                        );
+
                         if (
                             statusData
                             && statusData.has_status
@@ -1664,12 +3428,14 @@
                             statusElement.classList.remove(
                                 "status-empty"
                             );
+                            copyPreviousButton.disabled = false;
                         } else {
                             statusElement.textContent =
                                 "Статус за выбранную неделю не добавлен.";
                             statusElement.classList.add(
                                 "status-empty"
                             );
+                            copyPreviousButton.disabled = true;
                         }
                     }
                 );
@@ -1713,19 +3479,21 @@
             }
         }
 
-        olderWeekButton.addEventListener("click", () => {
-            loadPreviousWeek(
-                olderWeekButton.dataset.week
-            );
-        });
-
-        newerWeekButton.addEventListener("click", () => {
-            if (!newerWeekButton.disabled) {
+        if (olderWeekButton && newerWeekButton) {
+            olderWeekButton.addEventListener("click", () => {
                 loadPreviousWeek(
-                    newerWeekButton.dataset.week
+                    olderWeekButton.dataset.week
                 );
-            }
-        });
+            });
+
+            newerWeekButton.addEventListener("click", () => {
+                if (!newerWeekButton.disabled) {
+                    loadPreviousWeek(
+                        newerWeekButton.dataset.week
+                    );
+                }
+            });
+        }
     </script>
 </body>
 </html>

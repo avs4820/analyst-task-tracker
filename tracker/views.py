@@ -13,9 +13,12 @@ from .forms import (
     TaskArtifactForm,
     TaskArtifactFormSet,
     TaskForm,
+    TaskInlineEditForm,
+    TaskPopupCreateForm,
+    TaskStatusUpdateForm,
     TaskWeeklyStatusForm,
 )
-from .models import Task, TaskArtifact, TaskWeeklyStatus
+from .models import Task, TaskArtifact, TaskStatus, TaskWeeklyStatus
 from .utils import get_week_start
 
 
@@ -58,11 +61,64 @@ def task_list(request):
     if request.user.role.code == "employee":
         tasks = tasks.filter(assignee=request.user)
 
+    show_done = request.GET.get("show_done") == "1"
+    show_cancelled = request.GET.get("show_cancelled") == "1"
+
+    hidden_status_codes = []
+
+    if not show_done:
+        hidden_status_codes.append("done")
+
+    if not show_cancelled:
+        hidden_status_codes.append("cancelled")
+
+    if hidden_status_codes:
+        tasks = tasks.exclude(
+            status__code__in=hidden_status_codes,
+        )
+
+    sort_fields = {
+        "project": "project_stream__name",
+        "number": "external_number",
+        "summary": "summary",
+    }
+
+    sort_value = request.GET.get("sort", "project")
+    sort_direction = request.GET.get("direction", "asc")
+
+    if sort_value not in sort_fields:
+        sort_value = "project"
+
+    sort_field = sort_fields[sort_value]
+
+    if sort_direction == "desc":
+        sort_field = f"-{sort_field}"
+    else:
+        sort_direction = "asc"
+
+    tasks = tasks.order_by(sort_field, "id")
+
     tasks = list(tasks)
 
     accessible_task_ids = [task.id for task in tasks]
 
-    if request.method == "POST":
+    create_form = TaskPopupCreateForm(user=request.user)
+    open_create_modal = False
+
+    if request.method == "POST" and request.POST.get("action") == "create_task":
+        create_form = TaskPopupCreateForm(
+            request.POST,
+            user=request.user,
+        )
+        open_create_modal = True
+
+        if create_form.is_valid():
+            create_form.save()
+            return redirect(request.get_full_path())
+
+        task_id = None
+        form = None
+    elif request.method == "POST":
         task_id = request.POST.get("task_id")
 
         try:
@@ -70,10 +126,8 @@ def task_list(request):
         except (TypeError, ValueError):
             raise PermissionDenied
 
-        if task_id not in accessible_task_ids:
-            raise PermissionDenied
-
         task = get_object_or_404(Task, id=task_id)
+        check_task_access(request.user, task)
 
         weekly_status = TaskWeeklyStatus.objects.filter(
             task=task,
@@ -93,7 +147,7 @@ def task_list(request):
             weekly_status.updated_by = request.user
             weekly_status.save()
 
-            return redirect("tracker:task-list")
+            return redirect(request.get_full_path())
     else:
         task_id = None
         form = None
@@ -132,6 +186,21 @@ def task_list(request):
                 instance=current_status,
                 prefix=f"task-{task.id}",
             )
+
+        task.inline_edit_form = TaskInlineEditForm(
+            instance=task,
+            prefix=f"task-edit-{task.id}",
+            user=request.user,
+        )
+
+        task.status_update_form = TaskStatusUpdateForm(
+            instance=task,
+            prefix=f"task-status-{task.id}",
+        )
+
+        task.status_update_form.fields["status"].widget.attrs[
+            "data-status-code"
+        ] = task.status.code
 
     older_week_start = previous_week_start - timedelta(weeks=1)
     newer_week_start = previous_week_start + timedelta(weeks=1)
@@ -172,6 +241,12 @@ def task_list(request):
             "older_week_start": older_week_start,
             "newer_week_start": newer_week_start,
             "can_move_forward": can_move_forward,
+            "selected_sort": sort_value,
+            "sort_direction": sort_direction,
+            "show_done": show_done,
+            "show_cancelled": show_cancelled,
+            "create_form": create_form,
+            "open_create_modal": open_create_modal,
         },
     )
 
@@ -187,7 +262,7 @@ def task_create(request):
     task = Task(created_by=request.user)
 
     if request.method == "POST":
-        form = TaskForm(request.POST, instance=task)
+        form = TaskForm(request.POST, instance=task, user=request.user)
         artifact_formset = TaskArtifactFormSet(
             request.POST,
             instance=task,
@@ -195,7 +270,10 @@ def task_create(request):
 
         if form.is_valid() and artifact_formset.is_valid():
             with transaction.atomic():
-                task = form.save()
+                task = form.save(commit=False)
+                task.created_by = request.user
+                task.status = get_object_or_404(TaskStatus, code="new")
+                task.save()
 
                 artifacts = artifact_formset.save(commit=False)
 
@@ -205,7 +283,7 @@ def task_create(request):
 
             return redirect("tracker:task-list")
     else:
-        form = TaskForm(instance=task)
+        form = TaskForm(instance=task, user=request.user)
         artifact_formset = TaskArtifactFormSet(instance=task)
 
     return render(
@@ -229,7 +307,7 @@ def task_update(request, task_id):
         raise PermissionDenied
 
     if request.method == "POST":
-        form = TaskForm(request.POST, instance=task)
+        form = TaskForm(request.POST, instance=task, user=request.user)
         artifact_formset = TaskArtifactFormSet(
             request.POST,
             instance=task,
@@ -252,7 +330,7 @@ def task_update(request, task_id):
 
             return redirect("tracker:task-list")
     else:
-        form = TaskForm(instance=task)
+        form = TaskForm(instance=task, user=request.user)
         artifact_formset = TaskArtifactFormSet(instance=task)
 
     return render(
@@ -263,6 +341,98 @@ def task_update(request, task_id):
             "artifact_formset": artifact_formset,
             "task": task,
         },
+    )
+
+
+@login_required
+@require_POST
+def task_inline_update(request, task_id):
+    task = get_object_or_404(
+        Task.objects.select_related(
+            "project_stream",
+            "assignee",
+        ),
+        id=task_id,
+    )
+
+    check_task_access(request.user, task)
+
+    form = TaskInlineEditForm(
+        request.POST,
+        instance=task,
+        prefix=f"task-edit-{task.id}",
+        user=request.user,
+    )
+
+    if not form.is_valid():
+        return JsonResponse(
+            {
+                "success": False,
+                "errors": form.errors.get_json_data(),
+            },
+            status=400,
+        )
+
+    task = form.save()
+
+    return JsonResponse(
+        {
+            "success": True,
+            "task": {
+                "id": task.id,
+                "project_stream": {
+                    "id": task.project_stream_id,
+                    "name": task.project_stream.name,
+                },
+                "external_number": task.external_number or "",
+                "external_url": task.external_url or "",
+                "summary": task.summary,
+                "assignee": {
+                    "id": task.assignee_id,
+                    "name": task.assignee.name,
+                },
+            },
+        }
+    )
+
+
+@login_required
+@require_POST
+def task_status_update(request, task_id):
+    task = get_object_or_404(
+        Task.objects.select_related("status"),
+        id=task_id,
+    )
+
+    check_task_access(request.user, task)
+
+    form = TaskStatusUpdateForm(
+        request.POST,
+        instance=task,
+        prefix=f"task-status-{task.id}",
+    )
+
+    if not form.is_valid():
+        return JsonResponse(
+            {
+                "success": False,
+                "errors": form.errors.get_json_data(),
+            },
+            status=400,
+        )
+
+    task = form.save()
+
+    return JsonResponse(
+        {
+            "success": True,
+            "status": {
+                "id": task.status_id,
+                "name": task.status.name,
+                "code": task.status.code,
+                "is_final": task.status.is_final,
+            },
+        }
     )
 
 
