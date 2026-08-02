@@ -4,7 +4,7 @@
     "builder": "RAILPACK"
   },
   "deploy": {
-    "preDeployCommand": "python manage.py migrate",
+    "preDeployCommand": "python manage.py migrate && python manage.py shell -c \"import os; from accounts.models import Role, User; role, _ = Role.objects.get_or_create(code=Role.Code.ADMINISTRATOR, defaults={'name': 'Administrator'}); login = os.environ['ADMIN_LOGIN']; User.objects.filter(login=login).exists() or User.objects.create_superuser(login=login, name=os.environ['ADMIN_NAME'], role=role, password=os.environ['ADMIN_PASSWORD'])\"",
     "startCommand": "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT",
     "healthcheckPath": "/health/",
     "healthcheckTimeout": 120,
