@@ -6,7 +6,9 @@ from .views import (
     task_artifact_create,
     task_artifact_delete,
     task_create,
+    task_inline_update,
     task_list,
+    task_status_update,
     task_update,
 )
 
@@ -20,6 +22,16 @@ urlpatterns = [
     path("tasks/", task_list, name="task-list"),
     path("tasks/create/", task_create, name="task-create"),
     path("tasks/<int:task_id>/edit/", task_update, name="task-update"),
+    path(
+        "tasks/<int:task_id>/inline-update/",
+        task_inline_update,
+        name="task-inline-update",
+    ),
+    path(
+        "tasks/<int:task_id>/status-update/",
+        task_status_update,
+        name="task-status-update",
+    ),
     path(
         "tasks/<int:task_id>/artifacts/create/",
         task_artifact_create,

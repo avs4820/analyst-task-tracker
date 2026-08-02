@@ -273,3 +273,174 @@ class AuthenticationViewsTests(TestCase):
             "_auth_user_id",
             csrf_client.session,
         )
+
+class PasswordChangeViewTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.role, _ = Role.objects.get_or_create(
+            code=Role.Code.EMPLOYEE,
+            defaults={
+                "name": "Employee",
+            },
+        )
+
+        cls.old_password = "StrongOldPassword123!"
+        cls.new_password = "StrongNewPassword456!"
+
+        cls.user = User.objects.create_user(
+            login="password-user",
+            name="Password User",
+            role=cls.role,
+            password=cls.old_password,
+        )
+
+    def test_anonymous_user_is_redirected_to_login(self):
+        response = self.client.get(
+            reverse("accounts:password_change")
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(
+            reverse("accounts:login"),
+            response.url,
+        )
+
+    def test_password_change_page_is_available(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("accounts:password_change")
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
+            response,
+            "accounts/password_change.html",
+        )
+        self.assertContains(response, "Текущий пароль")
+        self.assertContains(response, "Новый пароль")
+        self.assertContains(response, "Подтверждение нового пароля")
+
+    def test_password_change_page_contains_csrf_token(self):
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.user)
+
+        response = csrf_client.get(
+            reverse("accounts:password_change")
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "csrfmiddlewaretoken",
+        )
+
+    def test_user_can_change_password(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("accounts:password_change"),
+            {
+                "old_password": self.old_password,
+                "new_password1": self.new_password,
+                "new_password2": self.new_password,
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("tracker:task-list"),
+        )
+
+        self.user.refresh_from_db()
+        self.assertTrue(
+            self.user.check_password(self.new_password)
+        )
+        self.assertFalse(
+            self.user.check_password(self.old_password)
+        )
+
+    def test_user_remains_authenticated_after_password_change(self):
+        self.client.force_login(self.user)
+
+        self.client.post(
+            reverse("accounts:password_change"),
+            {
+                "old_password": self.old_password,
+                "new_password1": self.new_password,
+                "new_password2": self.new_password,
+            },
+        )
+
+        self.assertEqual(
+            int(self.client.session["_auth_user_id"]),
+            self.user.pk,
+        )
+
+    def test_wrong_current_password_is_rejected(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("accounts:password_change"),
+            {
+                "old_password": "WrongCurrentPassword123!",
+                "new_password1": self.new_password,
+                "new_password2": self.new_password,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(
+            response.context["form"],
+            "old_password",
+            "Your old password was entered incorrectly. Please enter it again.",
+        )
+
+        self.user.refresh_from_db()
+        self.assertTrue(
+            self.user.check_password(self.old_password)
+        )
+
+    def test_different_new_passwords_are_rejected(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("accounts:password_change"),
+            {
+                "old_password": self.old_password,
+                "new_password1": self.new_password,
+                "new_password2": "DifferentNewPassword789!",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(
+            response.context["form"],
+            "new_password2",
+            "The two password fields didn’t match.",
+        )
+
+        self.user.refresh_from_db()
+        self.assertTrue(
+            self.user.check_password(self.old_password)
+        )
+
+    def test_password_change_post_requires_csrf_token(self):
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.user)
+
+        response = csrf_client.post(
+            reverse("accounts:password_change"),
+            {
+                "old_password": self.old_password,
+                "new_password1": self.new_password,
+                "new_password2": self.new_password,
+            },
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+        self.user.refresh_from_db()
+        self.assertTrue(
+            self.user.check_password(self.old_password)
+        )
