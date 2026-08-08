@@ -107,6 +107,13 @@ class Task(models.Model):
         verbose_name="Проект / Стрим",
     )
 
+    department = models.ForeignKey(
+        "accounts.Department",
+        on_delete=models.PROTECT,
+        related_name="tasks",
+        verbose_name="Отдел",
+    )
+
     summary = models.CharField(
         max_length=500,
         verbose_name="Описание",

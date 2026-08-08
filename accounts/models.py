@@ -5,10 +5,50 @@ from django.utils import timezone
 from .managers import UserManager
 
 
+class Department(models.Model):
+    name = models.CharField(
+        max_length=150,
+        unique=True,
+        verbose_name="Название",
+    )
+
+    code = models.SlugField(
+        max_length=50,
+        unique=True,
+        verbose_name="Код",
+        help_text="Технический код отдела, например: bsa",
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Активен",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Дата создания",
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Дата изменения",
+    )
+
+    class Meta:
+        db_table = "departments"
+        verbose_name = "Отдел"
+        verbose_name_plural = "Отделы"
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Role(models.Model):
     class Code(models.TextChoices):
         EMPLOYEE = "employee", "Employee"
         MANAGER = "manager", "Manager"
+        HEAD = "head", "Head"
         ADMINISTRATOR = "administrator", "Administrator"
 
     code = models.CharField(
@@ -44,6 +84,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         Role,
         on_delete=models.PROTECT,
         related_name="users",
+    )
+
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.PROTECT,
+        related_name="users",
+        verbose_name="Отдел",
     )
 
     is_active = models.BooleanField(

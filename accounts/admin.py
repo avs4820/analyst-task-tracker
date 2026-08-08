@@ -2,7 +2,37 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 from .forms import UserChangeForm, UserCreationForm
-from .models import Role, User
+from .models import Department, Role, User
+
+
+@admin.register(Department)
+class DepartmentAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "name",
+        "code",
+        "is_active",
+        "created_at",
+        "updated_at",
+    )
+
+    list_filter = (
+        "is_active",
+    )
+
+    search_fields = (
+        "name",
+        "code",
+    )
+
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+    )
+
+    ordering = (
+        "name",
+    )
 
 
 @admin.register(Role)
@@ -33,6 +63,7 @@ class UserAdmin(BaseUserAdmin):
         "login",
         "name",
         "role",
+        "department",
         "is_active",
         "is_staff",
         "is_superuser",
@@ -40,6 +71,7 @@ class UserAdmin(BaseUserAdmin):
 
     list_filter = (
         "role",
+        "department",
         "is_active",
         "is_staff",
         "is_superuser",
@@ -75,6 +107,7 @@ class UserAdmin(BaseUserAdmin):
                 "fields": (
                     "name",
                     "role",
+                    "department",
                 )
             },
         ),
@@ -117,6 +150,7 @@ class UserAdmin(BaseUserAdmin):
                     "login",
                     "name",
                     "role",
+                    "department",
                     "password1",
                     "password2",
                     "is_active",

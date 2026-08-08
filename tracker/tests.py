@@ -10,8 +10,14 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from tracker.utils import get_week_start
 
-from accounts.models import Role, User
+from accounts.models import Department, Role, User
 from tracker.decorators import role_required
+from tracker.forms import (
+    TaskForm,
+    TaskInlineEditForm,
+    TaskPopupCreateForm,
+    get_assignable_users,
+)
 from tracker.models import (
     ProjectStream,
     Task,
@@ -21,8 +27,499 @@ from tracker.models import (
 )
 
 
+def get_bsa_department():
+    department, _ = Department.objects.get_or_create(
+        code="bsa",
+        defaults={
+            "name": "BSA",
+            "is_active": True,
+        },
+    )
+    return department
+
+
+class TaskAssigneeQuerysetTests(TestCase):
+    def setUp(self):
+        self.bsa_department = get_bsa_department()
+        self.support_department = Department.objects.create(
+            code="support",
+            name="Support",
+            is_active=True,
+        )
+
+        self.employee_role, _ = Role.objects.get_or_create(
+            code="employee",
+            defaults={"name": "Employee"},
+        )
+        self.manager_role, _ = Role.objects.get_or_create(
+            code="manager",
+            defaults={"name": "Manager"},
+        )
+        self.head_role, _ = Role.objects.get_or_create(
+            code="head",
+            defaults={"name": "Head"},
+        )
+        self.administrator_role, _ = Role.objects.get_or_create(
+            code="administrator",
+            defaults={"name": "Administrator"},
+        )
+
+        self.bsa_employee = User.objects.create(
+            login="assignee_bsa_employee",
+            name="BSA Employee",
+            role=self.employee_role,
+            department=self.bsa_department,
+        )
+        self.second_bsa_employee = User.objects.create(
+            login="assignee_second_bsa_employee",
+            name="Second BSA Employee",
+            role=self.employee_role,
+            department=self.bsa_department,
+        )
+        self.support_employee = User.objects.create(
+            login="assignee_support_employee",
+            name="Support Employee",
+            role=self.employee_role,
+            department=self.support_department,
+        )
+
+        self.bsa_manager = User.objects.create(
+            login="assignee_bsa_manager",
+            name="BSA Manager",
+            role=self.manager_role,
+            department=self.bsa_department,
+        )
+        self.second_bsa_manager = User.objects.create(
+            login="assignee_second_bsa_manager",
+            name="Second BSA Manager",
+            role=self.manager_role,
+            department=self.bsa_department,
+        )
+        self.support_manager = User.objects.create(
+            login="assignee_support_manager",
+            name="Support Manager",
+            role=self.manager_role,
+            department=self.support_department,
+        )
+
+        self.head = User.objects.create(
+            login="assignee_head",
+            name="Head",
+            role=self.head_role,
+            department=self.bsa_department,
+        )
+        self.second_head = User.objects.create(
+            login="assignee_second_head",
+            name="Second Head",
+            role=self.head_role,
+            department=self.support_department,
+        )
+
+        self.administrator = User.objects.create(
+            login="assignee_administrator",
+            name="Administrator",
+            role=self.administrator_role,
+            department=self.bsa_department,
+        )
+        self.second_administrator = User.objects.create(
+            login="assignee_second_administrator",
+            name="Second Administrator",
+            role=self.administrator_role,
+            department=self.support_department,
+        )
+
+        self.inactive_employee = User.objects.create(
+            login="assignee_inactive_employee",
+            name="Inactive Employee",
+            role=self.employee_role,
+            department=self.bsa_department,
+            is_active=False,
+        )
+
+        self.project_stream = ProjectStream.objects.create(
+            name="Проверка исполнителей",
+        )
+        self.status = TaskStatus.objects.create(
+            name="Новая",
+            code="new",
+            order=1,
+            is_active=True,
+        )
+
+        self.task = Task.objects.create(
+            project_stream=self.project_stream,
+            department=self.bsa_department,
+            summary="Задача отдела BSA",
+            assignee=self.bsa_employee,
+            status=self.status,
+            created_by=self.bsa_manager,
+        )
+
+    def test_employee_can_assign_only_self(self):
+        users = set(
+            get_assignable_users(
+                user=self.bsa_employee,
+            )
+        )
+
+        self.assertEqual(
+            users,
+            {self.bsa_employee},
+        )
+
+    def test_manager_can_assign_self_and_employees_of_own_department(self):
+        users = set(
+            get_assignable_users(
+                user=self.bsa_manager,
+            )
+        )
+
+        self.assertEqual(
+            users,
+            {
+                self.bsa_manager,
+                self.bsa_employee,
+                self.second_bsa_employee,
+            },
+        )
+
+    def test_manager_cannot_assign_users_from_another_department(self):
+        users = get_assignable_users(
+            user=self.bsa_manager,
+        )
+
+        self.assertNotIn(self.support_employee, users)
+        self.assertNotIn(self.support_manager, users)
+
+    def test_manager_cannot_assign_other_manager_head_or_administrator(self):
+        users = get_assignable_users(
+            user=self.bsa_manager,
+        )
+
+        self.assertNotIn(self.second_bsa_manager, users)
+        self.assertNotIn(self.head, users)
+        self.assertNotIn(self.administrator, users)
+
+    def test_head_can_assign_self_managers_and_employees_from_all_departments(self):
+        users = set(
+            get_assignable_users(
+                user=self.head,
+            )
+        )
+
+        self.assertEqual(
+            users,
+            {
+                self.head,
+                self.bsa_employee,
+                self.second_bsa_employee,
+                self.support_employee,
+                self.bsa_manager,
+                self.second_bsa_manager,
+                self.support_manager,
+            },
+        )
+
+    def test_head_cannot_assign_another_head_or_administrator(self):
+        users = get_assignable_users(
+            user=self.head,
+        )
+
+        self.assertNotIn(self.second_head, users)
+        self.assertNotIn(self.administrator, users)
+        self.assertNotIn(self.second_administrator, users)
+
+    def test_administrator_can_assign_manager_and_employee(self):
+        users = set(
+            get_assignable_users(
+                user=self.administrator,
+            )
+        )
+
+        self.assertEqual(
+            users,
+            {
+                self.bsa_employee,
+                self.second_bsa_employee,
+                self.support_employee,
+                self.bsa_manager,
+                self.second_bsa_manager,
+                self.support_manager,
+            },
+        )
+
+    def test_administrator_cannot_assign_administrator(self):
+        users = get_assignable_users(
+            user=self.administrator,
+        )
+
+        self.assertNotIn(self.administrator, users)
+        self.assertNotIn(self.second_administrator, users)
+
+    def test_inactive_users_are_not_assignable(self):
+        users = get_assignable_users(
+            user=self.head,
+        )
+
+        self.assertNotIn(self.inactive_employee, users)
+
+    def test_task_reassignment_is_limited_to_task_department(self):
+        users = set(
+            get_assignable_users(
+                user=self.head,
+                task=self.task,
+            )
+        )
+
+        self.assertEqual(
+            users,
+            {
+                self.head,
+                self.bsa_employee,
+                self.second_bsa_employee,
+                self.bsa_manager,
+                self.second_bsa_manager,
+            },
+        )
+
+        self.assertNotIn(self.support_employee, users)
+        self.assertNotIn(self.support_manager, users)
+
+    def test_current_assignee_remains_available_after_department_transfer(self):
+        self.bsa_employee.department = self.support_department
+        self.bsa_employee.save(update_fields=["department"])
+
+        users = get_assignable_users(
+            user=self.bsa_manager,
+            task=self.task,
+        )
+
+        self.assertIn(self.bsa_employee, users)
+
+    def test_current_assignee_remains_available_after_role_change(self):
+        self.bsa_employee.role = self.administrator_role
+        self.bsa_employee.save(update_fields=["role"])
+
+        users = get_assignable_users(
+            user=self.bsa_manager,
+            task=self.task,
+        )
+
+        self.assertIn(self.bsa_employee, users)
+
+    def test_manager_popup_form_uses_assignable_users_queryset(self):
+        form = TaskPopupCreateForm(
+            user=self.bsa_manager,
+        )
+
+        users = set(form.fields["assignee"].queryset)
+
+        self.assertEqual(
+            users,
+            {
+                self.bsa_manager,
+                self.bsa_employee,
+                self.second_bsa_employee,
+            },
+        )
+
+    def test_manager_task_form_uses_task_department_queryset(self):
+        form = TaskForm(
+            instance=self.task,
+            user=self.bsa_manager,
+        )
+
+        users = set(form.fields["assignee"].queryset)
+
+        self.assertIn(self.bsa_employee, users)
+        self.assertIn(self.second_bsa_employee, users)
+        self.assertIn(self.bsa_manager, users)
+        self.assertNotIn(self.support_employee, users)
+
+    def test_manager_inline_form_uses_task_department_queryset(self):
+        form = TaskInlineEditForm(
+            instance=self.task,
+            user=self.bsa_manager,
+        )
+
+        users = set(form.fields["assignee"].queryset)
+
+        self.assertIn(self.bsa_employee, users)
+        self.assertIn(self.second_bsa_employee, users)
+        self.assertIn(self.bsa_manager, users)
+        self.assertNotIn(self.support_employee, users)
+
+    def test_employee_forms_do_not_contain_assignee_field(self):
+        create_form = TaskForm(
+            user=self.bsa_employee,
+        )
+        popup_form = TaskPopupCreateForm(
+            user=self.bsa_employee,
+        )
+        inline_form = TaskInlineEditForm(
+            instance=self.task,
+            user=self.bsa_employee,
+        )
+
+        self.assertNotIn("assignee", create_form.fields)
+        self.assertNotIn("assignee", popup_form.fields)
+        self.assertNotIn("assignee", inline_form.fields)
+
+    def test_employee_forms_do_not_contain_department_field(self):
+        create_form = TaskForm(
+            user=self.bsa_employee,
+        )
+        popup_form = TaskPopupCreateForm(
+            user=self.bsa_employee,
+        )
+        inline_form = TaskInlineEditForm(
+            instance=self.task,
+            user=self.bsa_employee,
+        )
+
+        self.assertNotIn("department", create_form.fields)
+        self.assertNotIn("department", popup_form.fields)
+        self.assertNotIn("department", inline_form.fields)
+
+    def test_manager_popup_and_inline_forms_do_not_contain_department_field(self):
+        popup_form = TaskPopupCreateForm(
+            user=self.bsa_manager,
+        )
+        inline_form = TaskInlineEditForm(
+            instance=self.task,
+            user=self.bsa_manager,
+        )
+
+        self.assertNotIn("department", popup_form.fields)
+        self.assertNotIn("department", inline_form.fields)
+        self.assertIn("assignee", popup_form.fields)
+        self.assertIn("assignee", inline_form.fields)
+
+    def test_head_popup_and_inline_forms_contain_department_and_assignee(self):
+        popup_form = TaskPopupCreateForm(
+            user=self.head,
+        )
+        inline_form = TaskInlineEditForm(
+            instance=self.task,
+            user=self.head,
+        )
+
+        self.assertIn("department", popup_form.fields)
+        self.assertIn("assignee", popup_form.fields)
+        self.assertIn("department", inline_form.fields)
+        self.assertIn("assignee", inline_form.fields)
+
+
+    def test_administrator_popup_and_inline_forms_contain_department_and_assignee(self):
+        popup_form = TaskPopupCreateForm(
+            user=self.administrator,
+        )
+        inline_form = TaskInlineEditForm(
+            instance=self.task,
+            user=self.administrator,
+        )
+
+        self.assertIn("department", popup_form.fields)
+        self.assertIn("assignee", popup_form.fields)
+        self.assertIn("department", inline_form.fields)
+        self.assertIn("assignee", inline_form.fields)
+
+    def test_head_inline_form_uses_selected_department_from_post_data(self):
+        prefix = f"task-edit-{self.task.id}"
+
+        form = TaskInlineEditForm(
+            data={
+                f"{prefix}-project_stream": self.project_stream.id,
+                f"{prefix}-external_number": "",
+                f"{prefix}-external_url": "",
+                f"{prefix}-department": self.support_department.id,
+                f"{prefix}-summary": self.task.summary,
+                f"{prefix}-assignee": self.support_employee.id,
+            },
+            instance=self.task,
+            user=self.head,
+            prefix=prefix,
+        )
+
+        users = set(form.fields["assignee"].queryset)
+
+        self.assertIn(self.support_employee, users)
+        self.assertIn(self.support_manager, users)
+        self.assertNotIn(self.bsa_employee, users)
+
+    def test_head_remains_assignable_when_another_department_is_selected(self):
+        users = get_assignable_users(
+            user=self.head,
+            department=self.support_department,
+        )
+
+        self.assertIn(self.head, users)
+        self.assertIn(self.support_employee, users)
+        self.assertIn(self.support_manager, users)
+
+        self.assertNotIn(self.bsa_employee, users)
+        self.assertNotIn(self.bsa_manager, users)
+        self.assertNotIn(self.second_head, users)
+        self.assertNotIn(self.administrator, users) 
+
+    def test_administrator_assignable_users_are_filtered_by_selected_department(self):
+        users = get_assignable_users(
+            user=self.administrator,
+            department=self.support_department,
+        )
+
+        self.assertEqual(
+            set(users),
+            {
+                self.support_employee,
+                self.support_manager,
+            },
+        )
+
+    def test_inline_form_accepts_matching_department_and_assignee(self):
+        prefix = f"task-edit-{self.task.id}"
+
+        form = TaskInlineEditForm(
+            data={
+                f"{prefix}-project_stream": self.project_stream.id,
+                f"{prefix}-external_number": "",
+                f"{prefix}-external_url": "",
+                f"{prefix}-department": self.support_department.id,
+                f"{prefix}-summary": self.task.summary,
+                f"{prefix}-assignee": self.support_employee.id,
+            },
+            instance=self.task,
+            user=self.head,
+            prefix=prefix,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+
+    def test_inline_form_rejects_assignee_from_another_department(self):
+        prefix = f"task-edit-{self.task.id}"
+
+        form = TaskInlineEditForm(
+            data={
+                f"{prefix}-project_stream": self.project_stream.id,
+                f"{prefix}-external_number": "",
+                f"{prefix}-external_url": "",
+                f"{prefix}-department": self.support_department.id,
+                f"{prefix}-summary": self.task.summary,
+                f"{prefix}-assignee": self.bsa_employee.id,
+            },
+            instance=self.task,
+            user=self.head,
+            prefix=prefix,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("assignee", form.errors)
+
+
 class TrackerAccessTests(TestCase):
     def setUp(self):
+        self.department = get_bsa_department()
         self.employee_role, _ = Role.objects.get_or_create(
             code="employee",
             defaults={"name": "Employee"},
@@ -32,6 +529,7 @@ class TrackerAccessTests(TestCase):
             login="test_employee",
             name="Test Employee",
             role=self.employee_role,
+            department=self.department,
         )
         self.employee.set_password("test-password-123")
         self.employee.save()
@@ -45,6 +543,7 @@ class TrackerAccessTests(TestCase):
             login="test_administrator",
             name="Test Administrator",
             role=self.administrator_role,
+            department=self.department,
         )
         self.administrator.set_password("test-password-123")
         self.administrator.save()
@@ -158,6 +657,7 @@ class WeekUtilsTests(TestCase):
 
 class TaskModelsTests(TestCase):
     def setUp(self):
+        self.department = get_bsa_department()
         self.employee_role, _ = Role.objects.get_or_create(
             code="employee",
             defaults={"name": "Employee"},
@@ -167,6 +667,7 @@ class TaskModelsTests(TestCase):
             login="task_creator",
             name="Task Creator",
             role=self.employee_role,
+            department=self.department,
         )
         self.creator.set_password("test-password-123")
         self.creator.save()
@@ -175,6 +676,7 @@ class TaskModelsTests(TestCase):
             login="task_assignee",
             name="Task Assignee",
             role=self.employee_role,
+            department=self.department,
         )
         self.assignee.set_password("test-password-123")
         self.assignee.save()
@@ -194,6 +696,7 @@ class TaskModelsTests(TestCase):
 
         self.task = Task.objects.create(
             project_stream=self.project_stream,
+            department=self.department,
             summary="Добавить управление пресетами",
             external_number="RND-1234",
             external_url="https://youtrack.example.com/issue/RND-1234",
@@ -223,6 +726,7 @@ class TaskModelsTests(TestCase):
     def test_task_string_representation_without_external_number(self):
         task_without_number = Task.objects.create(
             project_stream=self.project_stream,
+            department=self.department,
             summary="Проанализировать текущие настройки",
             assignee=self.assignee,
             status=self.status,
@@ -237,6 +741,7 @@ class TaskModelsTests(TestCase):
     def test_external_number_and_url_can_be_empty(self):
         task = Task.objects.create(
             project_stream=self.project_stream,
+            department=self.department,
             summary="Задача без номера в YouTrack",
             assignee=self.assignee,
             status=self.status,
@@ -525,6 +1030,7 @@ class TaskModelsTests(TestCase):
 
 class TaskListViewTests(TestCase):
     def setUp(self):
+        self.department = get_bsa_department()
         self.employee_role, _ = Role.objects.get_or_create(
             code="employee",
             defaults={"name": "Employee"},
@@ -544,6 +1050,7 @@ class TaskListViewTests(TestCase):
             login="task_list_user",
             name="Task List User",
             role=self.employee_role,
+            department=self.department,
         )
         self.user.set_password("test-password-123")
         self.user.save()
@@ -552,6 +1059,7 @@ class TaskListViewTests(TestCase):
             login="second_task_list_user",
             name="Second Task List User",
             role=self.employee_role,
+            department=self.department,
         )
         self.second_employee.set_password("test-password-123")
         self.second_employee.save()
@@ -560,6 +1068,7 @@ class TaskListViewTests(TestCase):
             login="employee_without_tasks",
             name="Employee Without Tasks",
             role=self.employee_role,
+            department=self.department,
         )
         self.employee_without_tasks.set_password("test-password-123")
         self.employee_without_tasks.save()
@@ -568,6 +1077,7 @@ class TaskListViewTests(TestCase):
             login="task_list_manager",
             name="Task List Manager",
             role=self.manager_role,
+            department=self.department,
         )
         self.manager.set_password("test-password-123")
         self.manager.save()
@@ -576,6 +1086,7 @@ class TaskListViewTests(TestCase):
             login="task_list_administrator",
             name="Task List Administrator",
             role=self.administrator_role,
+            department=self.department,
         )
         self.administrator.set_password("test-password-123")
         self.administrator.save()
@@ -610,6 +1121,7 @@ class TaskListViewTests(TestCase):
 
         self.task = Task.objects.create(
             project_stream=self.project_stream,
+            department=self.department,
             summary="Добавить страницу управления пресетами",
             external_number="RND-1234",
             external_url="https://youtrack.example.com/issue/RND-1234",
@@ -620,6 +1132,7 @@ class TaskListViewTests(TestCase):
 
         self.second_task = Task.objects.create(
             project_stream=self.project_stream,
+            department=self.department,
             summary="Задача другого сотрудника",
             external_number="RND-5678",
             external_url="https://youtrack.example.com/issue/RND-5678",
@@ -634,6 +1147,7 @@ class TaskListViewTests(TestCase):
 
         self.done_task = Task.objects.create(
             project_stream=self.project_stream,
+            department=self.department,
             summary="Завершённая задача",
             external_number="RND-3000",
             assignee=self.user,
@@ -643,6 +1157,7 @@ class TaskListViewTests(TestCase):
 
         self.cancelled_task = Task.objects.create(
             project_stream=self.project_stream,
+            department=self.department,
             summary="Отменённая задача",
             external_number="RND-4000",
             assignee=self.user,
@@ -652,6 +1167,7 @@ class TaskListViewTests(TestCase):
 
         self.sorting_task = Task.objects.create(
             project_stream=self.second_project_stream,
+            department=self.department,
             summary="Анализ автоматизации",
             external_number="RND-0001",
             assignee=self.user,
@@ -1123,6 +1639,7 @@ class TaskListViewTests(TestCase):
     def test_employee_does_not_see_other_users_final_tasks(self):
         other_done_task = Task.objects.create(
             project_stream=self.project_stream,
+            department=self.department,
             summary="Чужая завершённая задача",
             external_number="RND-9999",
             assignee=self.second_employee,
@@ -1474,6 +1991,7 @@ class TaskListViewTests(TestCase):
 
 class TaskInlineUpdateTests(TestCase):
     def setUp(self):
+        self.department = get_bsa_department()
         self.employee_role, _ = Role.objects.get_or_create(
             code="employee",
             defaults={"name": "Employee"},
@@ -1487,6 +2005,7 @@ class TaskInlineUpdateTests(TestCase):
             login="inline_edit_employee",
             name="Inline Edit Employee",
             role=self.employee_role,
+            department=self.department,
         )
         self.employee.set_password("test-password-123")
         self.employee.save()
@@ -1495,6 +2014,7 @@ class TaskInlineUpdateTests(TestCase):
             login="inline_edit_other_employee",
             name="Inline Edit Other Employee",
             role=self.employee_role,
+            department=self.department,
         )
         self.other_employee.set_password("test-password-123")
         self.other_employee.save()
@@ -1503,6 +2023,7 @@ class TaskInlineUpdateTests(TestCase):
             login="inline_edit_manager",
             name="Inline Edit Manager",
             role=self.manager_role,
+            department=self.department,
         )
         self.manager.set_password("test-password-123")
         self.manager.save()
@@ -1527,6 +2048,7 @@ class TaskInlineUpdateTests(TestCase):
 
         self.task = Task.objects.create(
             project_stream=self.project_stream,
+            department=self.department,
             summary="Исходное описание",
             external_number="RND-1000",
             external_url=(
@@ -1539,6 +2061,7 @@ class TaskInlineUpdateTests(TestCase):
 
         self.other_task = Task.objects.create(
             project_stream=self.project_stream,
+            department=self.department,
             summary="Задача другого сотрудника",
             external_number="RND-2000",
             external_url=(
@@ -1547,6 +2070,42 @@ class TaskInlineUpdateTests(TestCase):
             assignee=self.other_employee,
             status=self.status,
             created_by=self.other_employee,
+        )
+        self.other_department = Department.objects.create(
+            code="inline_support",
+            name="Inline Support",
+            is_active=True,
+        )
+
+        self.head_role, _ = Role.objects.get_or_create(
+            code="head",
+            defaults={"name": "Head"},
+        )
+
+        self.administrator_role, _ = Role.objects.get_or_create(
+            code="administrator",
+            defaults={"name": "Administrator"},
+        )
+
+        self.other_department_employee = User.objects.create(
+            login="inline_support_employee",
+            name="Inline Support Employee",
+            role=self.employee_role,
+            department=self.other_department,
+        )
+
+        self.head = User.objects.create(
+            login="inline_head",
+            name="Inline Head",
+            role=self.head_role,
+            department=self.department,
+        )
+
+        self.administrator = User.objects.create(
+            login="inline_administrator",
+            name="Inline Administrator",
+            role=self.administrator_role,
+            department=self.department,
         )
 
     def get_inline_form_data(
@@ -1557,6 +2116,7 @@ class TaskInlineUpdateTests(TestCase):
         summary=None,
         external_number=None,
         external_url=None,
+        department=None,
         assignee=None,
         status=None,
     ):
@@ -1588,6 +2148,9 @@ class TaskInlineUpdateTests(TestCase):
 
         if status is not None:
             data[f"{prefix}-status"] = status.id
+
+        if department is not None:
+            data[f"{prefix}-department"] = department.id
 
         return data
 
@@ -1798,9 +2361,130 @@ class TaskInlineUpdateTests(TestCase):
 
         self.assertEqual(response.status_code, 405)
 
+    def test_employee_cannot_change_department_via_crafted_inline_post(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.post(
+            reverse(
+                "tracker:task-inline-update",
+                args=[self.task.id],
+            ),
+            self.get_inline_form_data(
+                self.task,
+                summary="Описание изменено сотрудником",
+                department=self.other_department,
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.task.refresh_from_db()
+
+        self.assertEqual(
+            self.task.department,
+            self.department,
+        )
+        self.assertEqual(
+            self.task.assignee,
+            self.employee,
+        )
+
+    def test_manager_cannot_change_department_via_crafted_inline_post(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.post(
+            reverse(
+                "tracker:task-inline-update",
+                args=[self.task.id],
+            ),
+            self.get_inline_form_data(
+                self.task,
+                summary="Описание изменено менеджером",
+                department=self.other_department,
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.task.refresh_from_db()
+
+        self.assertEqual(
+            self.task.department,
+            self.department,
+        )
+
+    def test_head_can_move_task_to_another_department_and_assign_to_self(self):
+        self.client.force_login(self.head)
+
+        response = self.client.post(
+            reverse(
+                "tracker:task-inline-update",
+                args=[self.task.id],
+            ),
+            self.get_inline_form_data(
+                self.task,
+                department=self.other_department,
+                assignee=self.head,
+            ),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.task.refresh_from_db()
+
+        self.assertEqual(
+            self.task.department,
+            self.other_department,
+        )
+        self.assertEqual(
+            self.task.assignee,
+            self.head,
+        )
+
+        # Технический отдел Head не меняется.
+        self.assertEqual(
+            self.head.department,
+            self.department,
+        )
+
+    def test_head_cannot_move_task_to_another_department_with_wrong_assignee(self):
+        self.client.force_login(self.head)
+
+        response = self.client.post(
+            reverse(
+                "tracker:task-inline-update",
+                args=[self.task.id],
+            ),
+            self.get_inline_form_data(
+                self.task,
+                department=self.other_department,
+                assignee=self.employee,
+            ),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+        data = response.json()
+
+        self.assertFalse(data["success"])
+        self.assertIn("assignee", data["errors"])
+
+        self.task.refresh_from_db()
+
+        self.assertEqual(
+            self.task.department,
+            self.department,
+        )
+        self.assertEqual(
+            self.task.assignee,
+            self.employee,
+        )
 
 class TaskStatusUpdateTests(TestCase):
     def setUp(self):
+        self.department = get_bsa_department()
         self.employee_role, _ = Role.objects.get_or_create(
             code="employee",
             defaults={"name": "Employee"},
@@ -1814,6 +2498,7 @@ class TaskStatusUpdateTests(TestCase):
             login="status_update_employee",
             name="Status Update Employee",
             role=self.employee_role,
+            department=self.department,
         )
         self.employee.set_password("test-password-123")
         self.employee.save()
@@ -1822,6 +2507,7 @@ class TaskStatusUpdateTests(TestCase):
             login="status_update_other_employee",
             name="Status Update Other Employee",
             role=self.employee_role,
+            department=self.department,
         )
         self.other_employee.set_password("test-password-123")
         self.other_employee.save()
@@ -1830,6 +2516,7 @@ class TaskStatusUpdateTests(TestCase):
             login="status_update_manager",
             name="Status Update Manager",
             role=self.manager_role,
+            department=self.department,
         )
         self.manager.set_password("test-password-123")
         self.manager.save()
@@ -1859,6 +2546,7 @@ class TaskStatusUpdateTests(TestCase):
 
         self.task = Task.objects.create(
             project_stream=self.project_stream,
+            department=self.department,
             summary="Задача сотрудника",
             external_number="RND-5000",
             external_url=(
@@ -1871,6 +2559,7 @@ class TaskStatusUpdateTests(TestCase):
 
         self.other_task = Task.objects.create(
             project_stream=self.project_stream,
+            department=self.department,
             summary="Задача другого сотрудника",
             external_number="RND-6000",
             external_url=(
@@ -2119,6 +2808,7 @@ class TaskStatusUpdateTests(TestCase):
 
 class TaskArtifactAjaxTests(TestCase):
     def setUp(self):
+        self.department = get_bsa_department()
         self.employee_role, _ = Role.objects.get_or_create(
             code="employee",
             defaults={"name": "Employee"},
@@ -2132,6 +2822,7 @@ class TaskArtifactAjaxTests(TestCase):
             login="artifact_employee",
             name="Artifact Employee",
             role=self.employee_role,
+            department=self.department,
         )
         self.employee.set_password("test-password-123")
         self.employee.save()
@@ -2140,6 +2831,7 @@ class TaskArtifactAjaxTests(TestCase):
             login="artifact_other_employee",
             name="Artifact Other Employee",
             role=self.employee_role,
+            department=self.department,
         )
         self.other_employee.set_password("test-password-123")
         self.other_employee.save()
@@ -2148,6 +2840,7 @@ class TaskArtifactAjaxTests(TestCase):
             login="artifact_manager",
             name="Artifact Manager",
             role=self.manager_role,
+            department=self.department,
         )
         self.manager.set_password("test-password-123")
         self.manager.save()
@@ -2163,6 +2856,7 @@ class TaskArtifactAjaxTests(TestCase):
 
         self.task = Task.objects.create(
             project_stream=self.project_stream,
+            department=self.department,
             summary="Задача сотрудника",
             assignee=self.employee,
             status=self.status,
@@ -2170,6 +2864,7 @@ class TaskArtifactAjaxTests(TestCase):
         )
         self.other_task = Task.objects.create(
             project_stream=self.project_stream,
+            department=self.department,
             summary="Задача другого сотрудника",
             assignee=self.other_employee,
             status=self.status,
@@ -2375,6 +3070,7 @@ class TaskArtifactAjaxTests(TestCase):
 
 class TaskCreateViewTests(TestCase):
     def setUp(self):
+        self.department = get_bsa_department()
         self.employee_role, _ = Role.objects.get_or_create(
             code="employee",
             defaults={"name": "Employee"},
@@ -2384,6 +3080,7 @@ class TaskCreateViewTests(TestCase):
             login="task_create_user",
             name="Task Create User",
             role=self.employee_role,
+            department=self.department,
         )
         self.creator.set_password("test-password-123")
         self.creator.save()
@@ -2392,6 +3089,7 @@ class TaskCreateViewTests(TestCase):
             login="task_create_assignee",
             name="Task Create Assignee",
             role=self.employee_role,
+            department=self.department,
         )
         self.assignee.set_password("test-password-123")
         self.assignee.save()
@@ -2494,6 +3192,10 @@ class TaskCreateViewTests(TestCase):
             self.creator,
         )
         self.assertEqual(
+            task.department,
+            self.creator.department,
+        )
+        self.assertEqual(
             task.status,
             self.status,
         )
@@ -2555,6 +3257,10 @@ class TaskCreateViewTests(TestCase):
 
         task = Task.objects.get()
 
+        self.assertEqual(
+            task.department,
+            self.creator.department,
+        )
         self.assertEqual(task.external_number, "")
         self.assertEqual(task.external_url, "")
 
@@ -2691,6 +3397,7 @@ class TaskCreateViewTests(TestCase):
 
 class TaskUpdateViewTests(TestCase):
     def setUp(self):
+        self.department = get_bsa_department()
         self.employee_role, _ = Role.objects.get_or_create(
             code="employee",
             defaults={"name": "Employee"},
@@ -2710,6 +3417,7 @@ class TaskUpdateViewTests(TestCase):
             login="task_update_creator",
             name="Task Update Creator",
             role=self.employee_role,
+            department=self.department,
         )
         self.creator.set_password("test-password-123")
         self.creator.save()
@@ -2718,6 +3426,7 @@ class TaskUpdateViewTests(TestCase):
             login="task_update_assignee",
             name="Task Update Assignee",
             role=self.employee_role,
+            department=self.department,
         )
         self.assignee.set_password("test-password-123")
         self.assignee.save()
@@ -2726,6 +3435,7 @@ class TaskUpdateViewTests(TestCase):
             login="task_update_second_assignee",
             name="Second Task Assignee",
             role=self.employee_role,
+            department=self.department,
         )
         self.second_assignee.set_password("test-password-123")
         self.second_assignee.save()
@@ -2734,6 +3444,7 @@ class TaskUpdateViewTests(TestCase):
             login="task_update_manager",
             name="Task Update Manager",
             role=self.manager_role,
+            department=self.department,
         )
         self.manager.set_password("test-password-123")
         self.manager.save()
@@ -2742,6 +3453,7 @@ class TaskUpdateViewTests(TestCase):
             login="task_update_administrator",
             name="Task Update Administrator",
             role=self.administrator_role,
+            department=self.department,
         )
         self.administrator.set_password("test-password-123")
         self.administrator.save()
@@ -2772,6 +3484,7 @@ class TaskUpdateViewTests(TestCase):
 
         self.task = Task.objects.create(
             project_stream=self.project_stream,
+            department=self.department,
             summary="Исходное описание задачи",
             external_number="RND-1000",
             external_url=(
@@ -3302,13 +4015,43 @@ class TaskUpdateViewTests(TestCase):
 
 class TaskPopupCreateTests(TestCase):
     def setUp(self):
+        self.department = get_bsa_department()
+        self.other_department = Department.objects.create(
+            code="support_popup",
+            name="Support Popup",
+            is_active=True,
+        )
         self.employee_role, _ = Role.objects.get_or_create(code="employee", defaults={"name": "Employee"})
         self.manager_role, _ = Role.objects.get_or_create(code="manager", defaults={"name": "Manager"})
         self.administrator_role, _ = Role.objects.get_or_create(code="administrator", defaults={"name": "Administrator"})
-        self.employee = User.objects.create(login="popup_employee", name="Popup Employee", role=self.employee_role)
-        self.other_employee = User.objects.create(login="popup_other", name="Popup Other", role=self.employee_role)
-        self.manager = User.objects.create(login="popup_manager", name="Popup Manager", role=self.manager_role)
-        self.administrator = User.objects.create(login="popup_admin", name="Popup Admin", role=self.administrator_role)
+        self.head_role, _ = Role.objects.get_or_create(
+            code="head",
+            defaults={"name": "Head"},
+        )
+        self.employee = User.objects.create(login="popup_employee", name="Popup Employee", role=self.employee_role, department=self.department)
+        self.other_employee = User.objects.create(login="popup_other", name="Popup Other", role=self.employee_role, department=self.department)
+        self.manager = User.objects.create(login="popup_manager", name="Popup Manager", role=self.manager_role, department=self.department)
+        self.administrator = User.objects.create(login="popup_admin", name="Popup Admin", role=self.administrator_role, department=self.department)
+        self.other_department_employee = User.objects.create(
+            login="popup_support_employee",
+            name="Popup Support Employee",
+            role=self.employee_role,
+            department=self.other_department,
+        )
+
+        self.other_department_manager = User.objects.create(
+            login="popup_support_manager",
+            name="Popup Support Manager",
+            role=self.manager_role,
+            department=self.other_department,
+        )
+
+        self.head = User.objects.create(
+            login="popup_head",
+            name="Popup Head",
+            role=self.head_role,
+            department=self.department,
+        )
         self.project_stream = ProjectStream.objects.create(name="Попап")
         self.new_status = TaskStatus.objects.create(name="Новая", code="new", order=1, is_active=True)
         self.other_status = TaskStatus.objects.create(name="В работе", code="in_progress", order=2, is_active=True)
@@ -3330,7 +4073,14 @@ class TaskPopupCreateTests(TestCase):
         self.client.force_login(self.employee)
         response = self.client.get(reverse("tracker:task-list"))
         self.assertContains(response, 'id="create-task-modal"')
-        self.assertNotContains(response, 'name="assignee"')
+        self.assertNotIn(
+            "assignee",
+            response.context["create_form"].fields,
+        )
+        self.assertNotContains(
+            response,
+            '<select name="assignee"',
+        )
         self.assertContains(response, "Popup Employee")
 
     def test_employee_creates_task_assigned_to_self_in_new_status(self):
@@ -3341,6 +4091,10 @@ class TaskPopupCreateTests(TestCase):
         self.assertEqual(task.created_by, self.employee)
         self.assertEqual(task.status, self.new_status)
         self.assertRedirects(response, reverse("tracker:task-list"))
+        self.assertEqual(
+            task.department,
+            self.employee.department,
+        )
 
     def test_manager_can_choose_assignee(self):
         self.client.force_login(self.manager)
@@ -3348,6 +4102,10 @@ class TaskPopupCreateTests(TestCase):
         task = Task.objects.get(summary="Задача из попапа")
         self.assertEqual(task.assignee, self.other_employee)
         self.assertEqual(task.status, self.new_status)
+        self.assertEqual(
+            task.department,
+            self.other_employee.department,
+        )
 
     def test_administrator_can_choose_assignee(self):
         self.client.force_login(self.administrator)
@@ -3355,6 +4113,10 @@ class TaskPopupCreateTests(TestCase):
         task = Task.objects.get(summary="Задача из попапа")
         self.assertEqual(task.assignee, self.other_employee)
         self.assertEqual(task.status, self.new_status)
+        self.assertEqual(
+            task.department,
+            self.other_employee.department,
+        )
 
     def test_create_redirect_preserves_list_query_string(self):
         self.client.force_login(self.manager)
@@ -3372,7 +4134,7 @@ class TaskPopupCreateTests(TestCase):
         self.assertEqual(Task.objects.count(), 0)
 
     def test_employee_inline_edit_cannot_change_assignee(self):
-        task = Task.objects.create(project_stream=self.project_stream, summary="Своя задача", assignee=self.employee, status=self.new_status, created_by=self.employee)
+        task = Task.objects.create(project_stream=self.project_stream, department=self.department, summary="Своя задача", assignee=self.employee, status=self.new_status, created_by=self.employee)
         self.client.force_login(self.employee)
         prefix = f"task-edit-{task.id}"
         response = self.client.post(
@@ -3389,3 +4151,199 @@ class TaskPopupCreateTests(TestCase):
         task.refresh_from_db()
         self.assertEqual(task.assignee, self.employee)
         self.assertEqual(task.summary, "Обновленная задача")
+
+    def test_employee_popup_does_not_render_department_select(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.get(
+            reverse("tracker:task-list")
+        )
+
+        self.assertNotIn(
+            "department",
+            response.context["create_form"].fields,
+        )
+        self.assertNotContains(
+            response,
+            '<select name="department"',
+        )
+
+    def test_employee_cannot_spoof_department_or_assignee_in_popup(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.post(
+            reverse("tracker:task-list"),
+            self.create_data(
+                department=self.other_department.id,
+                assignee=self.other_department_employee.id,
+            ),
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("tracker:task-list"),
+        )
+
+        task = Task.objects.get(
+            summary="Задача из попапа"
+        )
+
+        self.assertEqual(task.assignee, self.employee)
+        self.assertEqual(task.department, self.department)
+
+    def test_manager_popup_does_not_render_department_select(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("tracker:task-list")
+        )
+
+        self.assertNotIn(
+            "department",
+            response.context["create_form"].fields,
+        )
+        self.assertIn(
+            "assignee",
+            response.context["create_form"].fields,
+        )
+
+    def test_manager_cannot_spoof_department_in_popup(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.post(
+            reverse("tracker:task-list"),
+            self.create_data(
+                department=self.other_department.id,
+                assignee=self.other_employee.id,
+            ),
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("tracker:task-list"),
+        )
+
+        task = Task.objects.get(
+            summary="Задача из попапа"
+        )
+
+        self.assertEqual(task.assignee, self.other_employee)
+        self.assertEqual(task.department, self.department)
+
+    def test_head_can_create_task_in_another_department_assigned_to_self(self):
+        self.client.force_login(self.head)
+
+        response = self.client.post(
+            reverse("tracker:task-list"),
+            self.create_data(
+                department=self.other_department.id,
+                assignee=self.head.id,
+            ),
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("tracker:task-list"),
+        )
+
+        task = Task.objects.get(
+            summary="Задача из попапа"
+        )
+
+        self.assertEqual(task.assignee, self.head)
+        self.assertEqual(
+            task.department,
+            self.other_department,
+        )
+
+        # Технический отдел самого Head при этом остаётся BSA.
+        self.assertEqual(
+            self.head.department,
+            self.department,
+        )
+
+    def test_head_can_create_task_for_employee_of_selected_department(self):
+        self.client.force_login(self.head)
+
+        response = self.client.post(
+            reverse("tracker:task-list"),
+            self.create_data(
+                department=self.other_department.id,
+                assignee=self.other_department_employee.id,
+            ),
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("tracker:task-list"),
+        )
+
+        task = Task.objects.get(
+            summary="Задача из попапа"
+        )
+
+        self.assertEqual(
+            task.department,
+            self.other_department,
+        )
+        self.assertEqual(
+            task.assignee,
+            self.other_department_employee,
+        )
+
+    def test_head_cannot_create_task_with_assignee_from_another_department(self):
+        self.client.force_login(self.head)
+
+        response = self.client.post(
+            reverse("tracker:task-list"),
+            self.create_data(
+                department=self.other_department.id,
+                assignee=self.other_employee.id,
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            response.context["open_create_modal"]
+        )
+        self.assertIn(
+            "assignee",
+            response.context["create_form"].errors,
+        )
+        self.assertEqual(Task.objects.count(), 0)
+
+    def test_administrator_cannot_create_task_with_assignee_from_another_department(self):
+        self.client.force_login(self.administrator)
+
+        response = self.client.post(
+            reverse("tracker:task-list"),
+            self.create_data(
+                department=self.other_department.id,
+                assignee=self.other_employee.id,
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "assignee",
+            response.context["create_form"].errors,
+        )
+        self.assertEqual(Task.objects.count(), 0)
+
+    def test_administrator_cannot_assign_task_to_self(self):
+        self.client.force_login(self.administrator)
+
+        response = self.client.post(
+            reverse("tracker:task-list"),
+            self.create_data(
+                department=self.department.id,
+                assignee=self.administrator.id,
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "assignee",
+            response.context["create_form"].errors,
+        )
+        self.assertEqual(Task.objects.count(), 0)

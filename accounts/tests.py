@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from .models import Role
+from .models import Department, Role
 
 
 User = get_user_model()
@@ -11,6 +11,14 @@ User = get_user_model()
 class AuthenticationViewsTests(TestCase):
     @classmethod
     def setUpTestData(cls):
+        cls.department, _ = Department.objects.get_or_create(
+            code="bsa",
+            defaults={
+                "name": "BSA",
+                "is_active": True,
+            },
+        )
+
         cls.role, _ = Role.objects.get_or_create(
             code=Role.Code.EMPLOYEE,
             defaults={
@@ -24,6 +32,7 @@ class AuthenticationViewsTests(TestCase):
             login="testuser",
             name="Test User",
             role=cls.role,
+            department=cls.department,
             password=cls.password,
         )
 
@@ -277,6 +286,14 @@ class AuthenticationViewsTests(TestCase):
 class PasswordChangeViewTests(TestCase):
     @classmethod
     def setUpTestData(cls):
+        cls.department, _ = Department.objects.get_or_create(
+            code="bsa",
+            defaults={
+                "name": "BSA",
+                "is_active": True,
+            },
+        )
+
         cls.role, _ = Role.objects.get_or_create(
             code=Role.Code.EMPLOYEE,
             defaults={
@@ -291,6 +308,7 @@ class PasswordChangeViewTests(TestCase):
             login="password-user",
             name="Password User",
             role=cls.role,
+            department=cls.department,
             password=cls.old_password,
         )
 

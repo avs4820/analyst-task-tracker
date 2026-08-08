@@ -21,6 +21,7 @@ class UserCreationForm(forms.ModelForm):
             "login",
             "name",
             "role",
+            "department",
             "is_active",
             "is_staff",
         )
@@ -71,6 +72,7 @@ class UserChangeForm(forms.ModelForm):
             "name",
             "password",
             "role",
+            "department",
             "is_active",
             "is_staff",
             "is_superuser",

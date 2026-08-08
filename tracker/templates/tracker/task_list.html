@@ -757,6 +757,28 @@
             background: #f3f4f6;
         }
 
+        .task-number-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 9px;
+        }
+
+        .task-number-row .task-link,
+        .task-number-row .task-number {
+            margin-bottom: 0;
+        }
+
+        .badge-department {
+            min-height: 23px;
+            padding: 4px 8px;
+            color: #1e40af;
+            background: #dbeafe;
+            font-size: 11px;
+            letter-spacing: 0.03em;
+        }
+
         .artifacts-section {
             padding-top: 14px;
             border-top: 1px solid #e5e7eb;
@@ -1059,7 +1081,7 @@
             width: 100%;
             min-height: 128px;
             resize: vertical;
-            padding: 11px 12px;
+            padding: 6px 4px;
             border: 1px solid #cbd5e1;
             border-radius: 8px;
             outline: none;
@@ -1300,7 +1322,7 @@
                 <input
                     id="task-search"
                     type="search"
-                    placeholder="Поиск по номеру, описанию или проекту"
+                    placeholder="Поиск по номеру, описанию, отделу или проекту"
                     aria-label="Поиск задач"
                 >
             </section>
@@ -1434,6 +1456,9 @@
                             {{ task.external_number }}
                             {{ task.summary }}
                             {{ task.project_stream.name }}
+                            {{ task.assignee.name }}
+                            {{ task.department.code }}
+                            {{ task.department.name }}
                         "
                     >
                         <div class="task-row">
@@ -1455,37 +1480,47 @@
                                                     {{ task.project_stream.name }}
                                                 </div>
 
-                                                <div data-task-link-container>
-                                                    {% if task.external_number %}
-                                                        {% if task.external_url %}
-                                                            <a
-                                                                class="task-link"
-                                                                href="{{ task.external_url }}"
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                data-task-link
-                                                            >
-                                                                <span data-task-number>
+                                                <div class="task-number-row">
+                                                    <div data-task-link-container>
+                                                        {% if task.external_number %}
+                                                            {% if task.external_url %}
+                                                                <a
+                                                                    class="task-link"
+                                                                    href="{{ task.external_url }}"
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    data-task-link
+                                                                >
+                                                                    <span data-task-number>
+                                                                        {{ task.external_number }}
+                                                                    </span>
+                                                                    ↗
+                                                                </a>
+                                                            {% else %}
+                                                                <span
+                                                                    class="task-number"
+                                                                    data-task-number
+                                                                >
                                                                     {{ task.external_number }}
                                                                 </span>
-                                                                ↗
-                                                            </a>
+                                                            {% endif %}
                                                         {% else %}
                                                             <span
                                                                 class="task-number"
                                                                 data-task-number
                                                             >
-                                                                {{ task.external_number }}
+                                                                Без внешнего номера
                                                             </span>
                                                         {% endif %}
-                                                    {% else %}
-                                                        <span
-                                                            class="task-number"
-                                                            data-task-number
-                                                        >
-                                                            Без внешнего номера
-                                                        </span>
-                                                    {% endif %}
+                                                    </div>
+
+                                                    <span
+                                                        class="badge badge-department"
+                                                        data-task-department
+                                                        title="{{ task.department.name }}"
+                                                    >
+                                                        {{ task.department.code|upper }}
+                                                    </span>
                                                 </div>
 
                                                 <p
@@ -1576,6 +1611,7 @@
                                                     </div>
                                                 </div>
 
+
                                                 <div class="task-edit-field">
                                                     <label
                                                         for="{{ task.inline_edit_form.summary.id_for_label }}"
@@ -1586,17 +1622,29 @@
                                                     {{ task.inline_edit_form.summary }}
                                                 </div>
 
-                                                <div class="task-edit-field">
-                                                    <label>Ответственный</label>
+                                                {% if request.user.role.code == "head" or request.user.role.code == "administrator" %}
+                                                    <div class="task-edit-field">
+                                                        <label
+                                                            for="{{ task.inline_edit_form.department.id_for_label }}"
+                                                        >
+                                                            Отдел
+                                                        </label>
 
-                                                    {% if request.user.role.code == "employee" %}
-                                                        <div class="modal-readonly-value">
-                                                            {{ task.assignee.name }}
-                                                        </div>
-                                                    {% else %}
+                                                        {{ task.inline_edit_form.department }}
+                                                    </div>
+                                                {% endif %}
+
+                                                {% if request.user.role.code != "employee" %}
+                                                    <div class="task-edit-field">
+                                                        <label
+                                                            for="{{ task.inline_edit_form.assignee.id_for_label }}"
+                                                        >
+                                                            Ответственный
+                                                        </label>
+
                                                         {{ task.inline_edit_form.assignee }}
-                                                    {% endif %}
-                                                </div>
+                                                    </div>
+                                                {% endif %}
                                             </div>
                                         </div>
 
@@ -1906,15 +1954,33 @@
                         <div class="modal-error">{{ create_form.summary.errors }}</div>
                     </div>
 
-                    <div class="modal-field">
-                        <label>Ответственный</label>
-                        {% if request.user.role.code == "employee" %}
-                            <div class="modal-readonly-value">{{ request.user.name }}</div>
-                        {% else %}
+                    {% if request.user.role.code == "head" or request.user.role.code == "administrator" %}
+                        <div class="modal-field">
+                            <label for="{{ create_form.department.id_for_label }}">
+                                Отдел
+                            </label>
+
+                            {{ create_form.department }}
+
+                            <div class="modal-error">
+                                {{ create_form.department.errors }}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if request.user.role.code != "employee" %}
+                        <div class="modal-field">
+                            <label for="{{ create_form.assignee.id_for_label }}">
+                                Ответственный
+                            </label>
+
                             {{ create_form.assignee }}
-                            <div class="modal-error">{{ create_form.assignee.errors }}</div>
-                        {% endif %}
-                    </div>
+
+                            <div class="modal-error">
+                                {{ create_form.assignee.errors }}
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
 
                 <div class="modal-actions">
@@ -2148,9 +2214,115 @@
     </div>
 
     <script>
+        const currentUserId = "{{ request.user.id }}";
+        const currentUserRole = "{{ request.user.role.code|escapejs }}";
         const createTaskButton = document.getElementById("create-task-button");
         const createTaskModal = document.getElementById("create-task-modal");
         const createTaskForm = document.getElementById("create-task-form");
+        const createDepartmentSelect = createTaskForm.querySelector(
+            '[name="department"]'
+        );
+        const createAssigneeSelect = createTaskForm.querySelector(
+            '[name="assignee"]'
+        );
+
+        function filterCreateAssigneesByDepartment() {
+            if (!createDepartmentSelect || !createAssigneeSelect) {
+                return;
+            }
+
+            const selectedDepartmentId = createDepartmentSelect.value;
+            const currentAssigneeId = createAssigneeSelect.value;
+
+            let currentAssigneeIsAvailable = false;
+
+            Array.from(createAssigneeSelect.options).forEach((option) => {
+                if (!option.value) {
+                    option.hidden = false;
+                    option.disabled = false;
+                    return;
+                }
+
+                const belongsToDepartment =
+                    !selectedDepartmentId
+                    || option.dataset.departmentId === selectedDepartmentId;
+
+                const isCurrentHead =
+                    currentUserRole === "head"
+                    && option.value === currentUserId;
+
+                const optionIsAvailable =
+                    belongsToDepartment || isCurrentHead;
+
+                option.hidden = !optionIsAvailable;
+                option.disabled = !optionIsAvailable;
+
+                if (
+                    optionIsAvailable
+                    && option.value === currentAssigneeId
+                ) {
+                    currentAssigneeIsAvailable = true;
+                }
+            });
+
+            if (
+                currentAssigneeId
+                && !currentAssigneeIsAvailable
+            ) {
+                createAssigneeSelect.value = "";
+            }
+        }
+
+        function syncCreateDepartmentFromAssignee() {
+            if (!createDepartmentSelect || !createAssigneeSelect) {
+                return;
+            }
+
+            const selectedOption =
+                createAssigneeSelect.options[
+                    createAssigneeSelect.selectedIndex
+                ];
+
+            if (!selectedOption || !selectedOption.value) {
+                return;
+            }
+
+            const isCurrentHead =
+                currentUserRole === "head"
+                && selectedOption.value === currentUserId;
+
+            if (isCurrentHead) {
+                return;
+            }
+
+            const assigneeDepartmentId =
+                selectedOption.dataset.departmentId;
+
+            if (!assigneeDepartmentId) {
+                return;
+            }
+
+            createDepartmentSelect.value = assigneeDepartmentId;
+            filterCreateAssigneesByDepartment();
+        }
+
+        if (createDepartmentSelect && createAssigneeSelect) {
+            createDepartmentSelect.addEventListener(
+                "change",
+                filterCreateAssigneesByDepartment
+            );
+
+            createAssigneeSelect.addEventListener(
+                "change",
+                () => {
+                    if (!createDepartmentSelect.value) {
+                        syncCreateDepartmentFromAssignee();
+                    }
+                }
+            );
+
+            filterCreateAssigneesByDepartment();
+        }
 
         function isAnyTaskEditorOpen() {
             return Boolean(
@@ -2363,8 +2535,91 @@
                     "input:not([type='hidden']), select, textarea"
                 )
             );
+            const departmentSelect = editForm.querySelector(
+                '[name$="-department"]'
+            );
+            const assigneeSelect = editForm.querySelector(
+                '[name$="-assignee"]'
+            );
+
+            function filterAssigneesByDepartment() {
+                if (!departmentSelect || !assigneeSelect) {
+                    return;
+                }
+
+                const selectedDepartmentId = departmentSelect.value;
+                const currentValue = assigneeSelect.value;
+                const originalDepartmentId =
+                    getOriginalValue(departmentSelect);
+                const originalAssigneeId =
+                    getOriginalValue(assigneeSelect);
+                    
+                let currentValueIsAvailable = false;
+
+                Array.from(assigneeSelect.options).forEach((option) => {
+                    if (!option.value) {
+                        option.hidden = false;
+                        option.disabled = false;
+                        return;
+                    }
+
+                    const belongsToDepartment =
+                        option.dataset.departmentId === selectedDepartmentId;
+
+                    const isCurrentHead =
+                        currentUserRole === "head"
+                        && option.value === currentUserId;
+
+                    const isHistoricalCurrentAssignee =
+                        selectedDepartmentId === originalDepartmentId
+                        && option.value === originalAssigneeId;
+
+                    const optionIsAvailable =
+                        belongsToDepartment
+                        || isCurrentHead
+                        || isHistoricalCurrentAssignee;
+
+                    option.hidden = !optionIsAvailable;
+                    option.disabled = !optionIsAvailable;
+
+                    if (
+                        optionIsAvailable
+                        && option.value === currentValue
+                    ) {
+                        currentValueIsAvailable = true;
+                    }
+                });
+
+                if (!currentValueIsAvailable) {
+                    const firstAvailableOption = Array.from(
+                        assigneeSelect.options
+                    ).find((option) => (
+                        option.value
+                        && !option.disabled
+                    ));
+
+                    assigneeSelect.value = firstAvailableOption
+                        ? firstAvailableOption.value
+                        : "";
+                }
+            }
+
+            if (departmentSelect) {
+                departmentSelect.addEventListener(
+                    "change",
+                    filterAssigneesByDepartment
+                );
+            }
 
             let originalValues = {};
+
+            function getOriginalValue(control) {
+                if (!control) {
+                    return "";
+                }
+
+                return originalValues[control.name] || "";
+            }
 
             function saveOriginalValues() {
                 originalValues = {};
@@ -2400,6 +2655,7 @@
                 saveOriginalValues();
                 clearEditErrors();
                 container.classList.add("is-editing");
+                filterAssigneesByDepartment();
 
                 const firstControl = controls[0];
 
@@ -2410,6 +2666,7 @@
 
             function closeEditMode() {
                 restoreOriginalValues();
+                filterAssigneesByDepartment();
                 clearEditErrors();
                 container.classList.remove("is-editing");
             }
@@ -2484,6 +2741,9 @@
                     const assigneeElement = container.querySelector(
                         "[data-task-assignee]"
                     );
+                    const departmentElement = container.querySelector(
+                        "[data-task-department]"
+                    );
                     const linkContainer = container.querySelector(
                         "[data-task-link-container]"
                     );
@@ -2492,6 +2752,10 @@
                         task.project_stream.name;
                     summaryElement.textContent = task.summary;
                     assigneeElement.textContent = task.assignee.name;
+
+                    departmentElement.textContent =
+                        task.department.code.toUpperCase();
+                    departmentElement.title = task.department.name;
 
                     linkContainer.replaceChildren();
 
@@ -2534,6 +2798,9 @@
                         ${task.external_number}
                         ${task.summary}
                         ${task.project_stream.name}
+                        ${task.assignee.name}
+                        ${task.department.code}
+                        ${task.department.name}
                     `;
 
                     saveOriginalValues();

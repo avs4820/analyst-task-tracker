@@ -56,10 +56,19 @@ def task_list(request):
         "status",
         "assignee",
         "created_by",
+        "department",
     )
 
     if request.user.role.code == "employee":
         tasks = tasks.filter(assignee=request.user)
+
+    elif request.user.role.code == "manager":
+        if request.user.department_id:
+            tasks = tasks.filter(
+                department_id=request.user.department_id,
+            )
+        else:
+            tasks = tasks.none()
 
     show_done = request.GET.get("show_done") == "1"
     show_cancelled = request.GET.get("show_cancelled") == "1"
@@ -250,12 +259,24 @@ def task_list(request):
         },
     )
 
+
 def check_task_access(user, task):
-    if (
-        user.role.code == "employee"
-        and task.assignee_id != user.id
-    ):
+    role_code = user.role.code
+
+    if role_code == "employee":
+        if task.assignee_id != user.id:
+            raise PermissionDenied
+
+    elif role_code == "manager":
+        if (
+            not user.department_id
+            or task.department_id != user.department_id
+        ):
+            raise PermissionDenied
+
+    elif role_code not in {"head", "administrator"}:
         raise PermissionDenied
+
 
 @login_required
 def task_create(request):
@@ -299,12 +320,7 @@ def task_create(request):
 @login_required
 def task_update(request, task_id):
     task = get_object_or_404(Task, id=task_id)
-
-    if (
-        request.user.role.code == "employee"
-        and task.assignee != request.user
-    ):
-        raise PermissionDenied
+    check_task_access(request.user, task)
 
     if request.method == "POST":
         form = TaskForm(request.POST, instance=task, user=request.user)
@@ -351,6 +367,7 @@ def task_inline_update(request, task_id):
         Task.objects.select_related(
             "project_stream",
             "assignee",
+            "department",
         ),
         id=task_id,
     )
@@ -387,6 +404,11 @@ def task_inline_update(request, task_id):
                 "external_number": task.external_number or "",
                 "external_url": task.external_url or "",
                 "summary": task.summary,
+                "department": {
+                    "id": task.department_id,
+                    "code": task.department.code,
+                    "name": task.department.name,
+                },
                 "assignee": {
                     "id": task.assignee_id,
                     "name": task.assignee.name,

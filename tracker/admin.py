@@ -54,6 +54,7 @@ class TaskAdmin(admin.ModelAdmin):
     list_display = (
         "display_name",
         "project_stream",
+        "department",
         "assignee",
         "status",
         "created_by",
@@ -62,6 +63,7 @@ class TaskAdmin(admin.ModelAdmin):
     )
     list_filter = (
         "project_stream",
+        "department",
         "status",
         "assignee",
         "created_at",
@@ -74,6 +76,7 @@ class TaskAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = (
         "project_stream",
+        "department",
         "status",
         "assignee",
         "created_by",

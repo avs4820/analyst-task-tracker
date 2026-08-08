@@ -13,6 +13,7 @@ class UserManager(BaseUserManager):
         login: str,
         name: str,
         role: Any,
+        department: Any,
         password: str | None = None,
         **extra_fields: Any,
     ):
@@ -25,6 +26,9 @@ class UserManager(BaseUserManager):
         if role is None:
             raise ValueError("Role must be provided.")
 
+        if department is None:
+            raise ValueError("Department must be provided.")
+
         login = login.strip().lower()
         name = name.strip()
 
@@ -32,6 +36,7 @@ class UserManager(BaseUserManager):
             login=login,
             name=name,
             role=role,
+            department=department,
             **extra_fields,
         )
 
@@ -45,6 +50,7 @@ class UserManager(BaseUserManager):
         login: str,
         name: str,
         role: Any,
+        department: Any,
         password: str | None = None,
         **extra_fields: Any,
     ):
@@ -62,6 +68,7 @@ class UserManager(BaseUserManager):
             login=login,
             name=name,
             role=role,
+            department=department,
             password=password,
             **extra_fields,
         )
