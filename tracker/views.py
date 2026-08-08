@@ -2,7 +2,9 @@ from datetime import date, timedelta
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.http import JsonResponse
@@ -86,6 +88,18 @@ def task_list(request):
             status__code__in=hidden_status_codes,
         )
 
+    search_value = request.GET.get("search", "").strip()
+
+    if search_value:
+        tasks = tasks.filter(
+            Q(external_number__icontains=search_value)
+            | Q(summary__icontains=search_value)
+            | Q(project_stream__name__icontains=search_value)
+            | Q(assignee__name__icontains=search_value)
+            | Q(department__code__icontains=search_value)
+            | Q(department__name__icontains=search_value)
+        )
+
     sort_fields = {
         "project": "project_stream__name",
         "number": "external_number",
@@ -107,7 +121,13 @@ def task_list(request):
 
     tasks = tasks.order_by(sort_field, "id")
 
-    tasks = list(tasks)
+    paginator = Paginator(tasks, 10)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    tasks = list(page_obj.object_list)
+
+    pagination_params = request.GET.copy()
+    pagination_params.pop("page", None)
+    pagination_query = pagination_params.urlencode()
 
     accessible_task_ids = [task.id for task in tasks]
 
@@ -252,8 +272,11 @@ def task_list(request):
             "can_move_forward": can_move_forward,
             "selected_sort": sort_value,
             "sort_direction": sort_direction,
+            "selected_search": search_value,
             "show_done": show_done,
             "show_cancelled": show_cancelled,
+            "page_obj": page_obj,
+            "pagination_query": pagination_query,
             "create_form": create_form,
             "open_create_modal": open_create_modal,
         },

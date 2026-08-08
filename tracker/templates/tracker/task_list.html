@@ -210,6 +210,21 @@
             background: #fff;
         }
 
+        .search-button {
+            flex: 0 0 auto;
+            padding: 10px 16px;
+            border: 1px solid #2563eb;
+            border-radius: 8px;
+            color: #fff;
+            background: #2563eb;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .search-button:hover {
+            background: #1d4ed8;
+        }
+
         .list-controls {
             display: grid;
             grid-template-columns:
@@ -287,6 +302,52 @@
 
         .sort-direction-button:hover {
             background: #f9fafb;
+        }
+
+        .pagination-control {
+            position: fixed;
+            right: 22px;
+            bottom: 22px;
+            z-index: 50;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+            color: #374151;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .pagination-control a,
+        .pagination-control span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 26px;
+            height: 26px;
+            border-radius: 6px;
+        }
+
+        .pagination-control a {
+            color: #374151;
+            text-decoration: none;
+        }
+
+        .pagination-control a:hover {
+            background: #f3f4f6;
+        }
+
+        .pagination-control .disabled {
+            color: #9ca3af;
+        }
+
+        .pagination-position {
+            padding: 0 2px;
+            white-space: nowrap;
         }
 
         .quick-filter {
@@ -1322,9 +1383,20 @@
                 <input
                     id="task-search"
                     type="search"
+                    name="search"
+                    value="{{ selected_search }}"
+                    form="task-list-controls"
                     placeholder="Поиск по номеру, описанию, отделу или проекту"
                     aria-label="Поиск задач"
                 >
+
+                <button
+                    class="search-button"
+                    type="submit"
+                    form="task-list-controls"
+                >
+                    Поиск
+                </button>
             </section>
 
             <section class="list-controls">
@@ -1895,6 +1967,32 @@
             {% endif %}
         </div>
     </main>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+        <nav class="pagination-control" aria-label="Страницы списка задач">
+            {% if page_obj.has_previous %}
+                <a
+                    href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}"
+                    aria-label="Предыдущая страница"
+                >‹</a>
+            {% else %}
+                <span class="disabled" aria-hidden="true">‹</span>
+            {% endif %}
+
+            <span class="pagination-position">
+                {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+            </span>
+
+            {% if page_obj.has_next %}
+                <a
+                    href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}"
+                    aria-label="Следующая страница"
+                >›</a>
+            {% else %}
+                <span class="disabled" aria-hidden="true">›</span>
+            {% endif %}
+        </nav>
+    {% endif %}
 
 
     <div
@@ -3454,7 +3552,9 @@
                 direction: sortDirectionInput.value,
                 showDone: showDoneCheckbox.checked,
                 showCancelled: showCancelledCheckbox.checked,
-                search: searchInput ? searchInput.value : "",
+                search: searchInput
+                    ? searchInput.value.trim()
+                    : "",
             };
 
             try {
@@ -3465,29 +3565,6 @@
             } catch (error) {
                 // Работа страницы не должна зависеть от sessionStorage.
             }
-        }
-
-        function applyTextFilter() {
-            if (!searchInput) {
-                return;
-            }
-
-            const query = searchInput.value
-                .trim()
-                .toLowerCase();
-
-            document.querySelectorAll(".task-shell").forEach(
-                (taskCard) => {
-                    const searchableText = taskCard.dataset
-                        .searchText
-                        .toLowerCase();
-
-                    taskCard.style.display =
-                        searchableText.includes(query)
-                            ? ""
-                            : "none";
-                }
-            );
         }
 
         function buildControlsUrl(state) {
@@ -3516,6 +3593,13 @@
                 );
             }
 
+            if (state.search) {
+                url.searchParams.set("search", state.search);
+            } else {
+                url.searchParams.delete("search");
+            }
+
+            url.searchParams.delete("page");
             url.searchParams.delete("format");
 
             return url;
@@ -3527,14 +3611,6 @@
             if (!savedState) {
                 saveTaskListState();
                 return;
-            }
-
-            if (searchInput) {
-                searchInput.value =
-                    typeof savedState.search === "string"
-                        ? savedState.search
-                        : "";
-                applyTextFilter();
             }
 
             const normalizedState = {
@@ -3549,7 +3625,7 @@
                 ),
                 search:
                     typeof savedState.search === "string"
-                        ? savedState.search
+                        ? savedState.search.trim()
                         : "",
             };
 
@@ -3561,7 +3637,9 @@
                 || showDoneCheckbox.checked
                     !== normalizedState.showDone
                 || showCancelledCheckbox.checked
-                    !== normalizedState.showCancelled;
+                    !== normalizedState.showCancelled
+                || (searchInput ? searchInput.value : "")
+                    !== normalizedState.search;
 
             if (controlsDiffer) {
                 window.location.replace(
@@ -3574,13 +3652,6 @@
 
         }
 
-        if (searchInput) {
-            searchInput.addEventListener("input", () => {
-                applyTextFilter();
-                saveTaskListState();
-            });
-        }
-
         function submitTaskListControls() {
             saveTaskListState();
 
@@ -3591,6 +3662,8 @@
             url.searchParams.delete("direction");
             url.searchParams.delete("show_done");
             url.searchParams.delete("show_cancelled");
+            url.searchParams.delete("search");
+            url.searchParams.delete("page");
             url.searchParams.delete("format");
 
             formData.forEach((value, name) => {
@@ -3599,6 +3672,11 @@
 
             window.location.href = url.toString();
         }
+
+        taskListControls.addEventListener("submit", (event) => {
+            event.preventDefault();
+            submitTaskListControls();
+        });
 
         taskSortSelect.addEventListener(
             "change",

@@ -1636,6 +1636,221 @@ class TaskListViewTests(TestCase):
             "asc",
         )
 
+    def create_pagination_tasks(
+        self,
+        count,
+        *,
+        assignee=None,
+        summary_prefix="Задача пагинации",
+    ):
+        assignee = assignee or self.user
+
+        return Task.objects.bulk_create(
+            [
+                Task(
+                    project_stream=self.project_stream,
+                    department=self.department,
+                    summary=f"{summary_prefix} {index:02d}",
+                    external_number=f"PAG-{index:02d}",
+                    assignee=assignee,
+                    status=self.status,
+                    created_by=self.manager,
+                )
+                for index in range(count)
+            ]
+        )
+
+    def test_task_list_is_paginated_by_ten_tasks(self):
+        self.create_pagination_tasks(9)
+        self.client.force_login(self.user)
+
+        first_page = self.client.get(
+            reverse("tracker:task-list")
+        )
+        second_page = self.client.get(
+            reverse("tracker:task-list"),
+            {"page": "2"},
+        )
+
+        self.assertEqual(len(first_page.context["tasks"]), 10)
+        self.assertEqual(len(second_page.context["tasks"]), 1)
+        self.assertEqual(
+            first_page.context["page_obj"].paginator.num_pages,
+            2,
+        )
+        self.assertEqual(second_page.context["page_obj"].number, 2)
+
+    def test_access_filtering_is_applied_before_pagination(self):
+        self.create_pagination_tasks(
+            10,
+            assignee=self.second_employee,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list")
+        )
+
+        self.assertEqual(
+            set(response.context["tasks"]),
+            {self.task, self.sorting_task},
+        )
+        self.assertEqual(
+            response.context["page_obj"].paginator.num_pages,
+            1,
+        )
+
+    def test_search_filters_the_full_queryset_before_pagination(self):
+        self.create_pagination_tasks(10)
+        matching_task = Task.objects.create(
+            project_stream=self.project_stream,
+            department=self.department,
+            summary="Особая задача с маркером needle",
+            external_number="PAG-TARGET",
+            assignee=self.user,
+            status=self.status,
+            created_by=self.manager,
+        )
+        self.client.force_login(self.user)
+
+        unfiltered_second_page = self.client.get(
+            reverse("tracker:task-list"),
+            {"page": "2"},
+        )
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {"search": "needle"},
+        )
+
+        self.assertIn(
+            matching_task,
+            unfiltered_second_page.context["tasks"],
+        )
+        self.assertEqual(
+            list(response.context["tasks"]),
+            [matching_task],
+        )
+        self.assertEqual(response.context["selected_search"], "needle")
+
+    def test_sorting_is_applied_before_pagination(self):
+        self.create_pagination_tasks(9)
+        self.client.force_login(self.user)
+
+        first_page = self.client.get(
+            reverse("tracker:task-list"),
+            {"sort": "number", "direction": "desc"},
+        )
+        second_page = self.client.get(
+            reverse("tracker:task-list"),
+            {
+                "sort": "number",
+                "direction": "desc",
+                "page": "2",
+            },
+        )
+
+        actual_ids = [
+            task.id
+            for task in (
+                list(first_page.context["tasks"])
+                + list(second_page.context["tasks"])
+            )
+        ]
+        expected_ids = list(
+            Task.objects.filter(assignee=self.user)
+            .exclude(status__code__in=["done", "cancelled"])
+            .order_by("-external_number", "id")
+            .values_list("id", flat=True)
+        )
+
+        self.assertEqual(actual_ids, expected_ids)
+
+    def test_status_toggles_are_applied_before_pagination(self):
+        self.create_pagination_tasks(8)
+        self.client.force_login(self.user)
+
+        default_response = self.client.get(
+            reverse("tracker:task-list")
+        )
+        with_done_response = self.client.get(
+            reverse("tracker:task-list"),
+            {"show_done": "1"},
+        )
+
+        self.assertEqual(
+            default_response.context["page_obj"].paginator.num_pages,
+            1,
+        )
+        self.assertEqual(
+            with_done_response.context["page_obj"].paginator.num_pages,
+            2,
+        )
+
+    def test_pagination_control_preserves_list_settings(self):
+        self.create_pagination_tasks(
+            11,
+            summary_prefix="Общий маркер",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {
+                "search": "Общий маркер",
+                "sort": "number",
+                "direction": "desc",
+                "show_done": "1",
+            },
+        )
+
+        self.assertContains(response, 'class="pagination-control"')
+        self.assertContains(response, "1 / 2")
+        self.assertContains(response, "search=%D0%9E%D0%B1%D1%89%D0%B8%D0%B9")
+        self.assertContains(response, "sort=number")
+        self.assertContains(response, "direction=desc")
+        self.assertContains(response, "show_done=1")
+        self.assertContains(response, "page=2")
+
+    def test_pagination_control_is_hidden_for_single_page(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list")
+        )
+
+        self.assertNotContains(response, 'class="pagination-control"')
+
+    def test_list_control_changes_reset_page_in_browser_url(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list")
+        )
+
+        self.assertContains(
+            response,
+            'url.searchParams.delete("page");',
+            count=2,
+        )
+
+    def test_search_is_submitted_by_form_without_input_debounce(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list")
+        )
+
+        self.assertContains(response, 'class="search-button"')
+        self.assertContains(response, "Поиск")
+        self.assertContains(
+            response,
+            'taskListControls.addEventListener("submit"',
+        )
+        self.assertNotContains(
+            response,
+            'searchInput.addEventListener("input"',
+        )
+
     def test_employee_does_not_see_other_users_final_tasks(self):
         other_done_task = Task.objects.create(
             project_stream=self.project_stream,
