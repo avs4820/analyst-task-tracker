@@ -4348,6 +4348,10 @@ class TaskPopupCreateTests(TestCase):
         self.client.force_login(self.employee)
         response = self.client.get(reverse("tracker:task-list"))
         self.assertContains(response, 'id="create-task-modal"')
+        self.assertNotContains(
+            response,
+            "data-create-task-responsibility",
+        )
         self.assertNotIn(
             "assignee",
             response.context["create_form"].fields,
@@ -4480,6 +4484,31 @@ class TaskPopupCreateTests(TestCase):
         self.assertIn(
             "assignee",
             response.context["create_form"].fields,
+        )
+        self.assertContains(
+            response,
+            "data-create-task-responsibility",
+        )
+        self.assertContains(
+            response,
+            "data-create-task-department-readonly",
+        )
+        self.assertContains(response, self.department.name)
+
+    def test_head_popup_renders_editable_responsibility_fields(self):
+        self.client.force_login(self.head)
+
+        response = self.client.get(reverse("tracker:task-list"))
+
+        self.assertContains(
+            response,
+            "data-create-task-responsibility",
+        )
+        self.assertContains(response, '<select name="department"')
+        self.assertContains(response, '<select name="assignee"')
+        self.assertNotContains(
+            response,
+            "data-create-task-department-readonly",
         )
 
     def test_manager_cannot_spoof_department_in_popup(self):

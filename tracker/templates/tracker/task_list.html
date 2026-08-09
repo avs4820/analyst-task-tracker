@@ -1031,6 +1031,72 @@
             font-size: 12px;
         }
 
+        .create-task-modal {
+            max-width: 620px;
+        }
+
+        .create-task-form-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .create-task-form-grid .modal-field {
+            min-width: 0;
+            margin-bottom: 0;
+        }
+
+        .create-task-form-grid .modal-field label {
+            margin-bottom: 5px;
+            color: #6b7280;
+            font-size: 11px;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+
+        .create-task-form-grid .modal-error:empty {
+            display: none;
+        }
+
+        .create-task-external-fields,
+        .create-task-responsibility-fields {
+            display: grid;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .create-task-external-fields {
+            grid-template-columns:
+                minmax(115px, 0.42fr)
+                minmax(0, 1fr);
+        }
+
+        .create-task-responsibility {
+            display: grid;
+            gap: 10px;
+            padding-top: 14px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .create-task-responsibility-title {
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .create-task-responsibility-fields {
+            grid-template-columns:
+                minmax(0, 0.82fr)
+                minmax(0, 1.18fr);
+        }
+
+        .create-task-department-value {
+            min-height: 42px;
+            padding: 10px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            color: #374151;
+            background: #f9fafb;
+        }
+
         .modal-actions {
             display: flex;
             justify-content: flex-end;
@@ -1305,6 +1371,11 @@
             }
 
             .task-link-edit-fields {
+                grid-template-columns: 1fr;
+            }
+
+            .create-task-external-fields,
+            .create-task-responsibility-fields {
                 grid-template-columns: 1fr;
             }
 
@@ -2001,7 +2072,7 @@
         aria-hidden="{% if open_create_modal %}false{% else %}true{% endif %}"
     >
         <div
-            class="modal"
+            class="modal create-task-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-task-modal-title"
@@ -2023,7 +2094,7 @@
                 {% csrf_token %}
                 <input type="hidden" name="action" value="create_task">
 
-                <div class="modal-body">
+                <div class="modal-body create-task-form-grid">
                     {% if create_form.non_field_errors %}
                         <div class="form-errors">{{ create_form.non_field_errors }}</div>
                     {% endif %}
@@ -2034,16 +2105,18 @@
                         <div class="modal-error">{{ create_form.project_stream.errors }}</div>
                     </div>
 
-                    <div class="modal-field">
-                        <label for="{{ create_form.external_number.id_for_label }}">Номер</label>
-                        {{ create_form.external_number }}
-                        <div class="modal-error">{{ create_form.external_number.errors }}</div>
-                    </div>
+                    <div class="create-task-external-fields">
+                        <div class="modal-field">
+                            <label for="{{ create_form.external_number.id_for_label }}">Номер</label>
+                            {{ create_form.external_number }}
+                            <div class="modal-error">{{ create_form.external_number.errors }}</div>
+                        </div>
 
-                    <div class="modal-field">
-                        <label for="{{ create_form.external_url.id_for_label }}">Ссылка</label>
-                        {{ create_form.external_url }}
-                        <div class="modal-error">{{ create_form.external_url.errors }}</div>
+                        <div class="modal-field">
+                            <label for="{{ create_form.external_url.id_for_label }}">Ссылка</label>
+                            {{ create_form.external_url }}
+                            <div class="modal-error">{{ create_form.external_url.errors }}</div>
+                        </div>
                     </div>
 
                     <div class="modal-field">
@@ -2052,32 +2125,50 @@
                         <div class="modal-error">{{ create_form.summary.errors }}</div>
                     </div>
 
-                    {% if request.user.role.code == "head" or request.user.role.code == "administrator" %}
-                        <div class="modal-field">
-                            <label for="{{ create_form.department.id_for_label }}">
-                                Отдел
-                            </label>
-
-                            {{ create_form.department }}
-
-                            <div class="modal-error">
-                                {{ create_form.department.errors }}
-                            </div>
-                        </div>
-                    {% endif %}
-
                     {% if request.user.role.code != "employee" %}
-                        <div class="modal-field">
-                            <label for="{{ create_form.assignee.id_for_label }}">
-                                Ответственный
-                            </label>
-
-                            {{ create_form.assignee }}
-
-                            <div class="modal-error">
-                                {{ create_form.assignee.errors }}
+                        <section
+                            class="create-task-responsibility"
+                            data-create-task-responsibility
+                        >
+                            <div class="create-task-responsibility-title">
+                                Ответственность
                             </div>
-                        </div>
+
+                            <div class="create-task-responsibility-fields">
+                                <div class="modal-field">
+                                    <label{% if request.user.role.code == "head" or request.user.role.code == "administrator" %} for="{{ create_form.department.id_for_label }}"{% endif %}>
+                                        Отдел
+                                    </label>
+
+                                    {% if request.user.role.code == "head" or request.user.role.code == "administrator" %}
+                                        {{ create_form.department }}
+
+                                        <div class="modal-error">
+                                            {{ create_form.department.errors }}
+                                        </div>
+                                    {% else %}
+                                        <div
+                                            class="create-task-department-value"
+                                            data-create-task-department-readonly
+                                        >
+                                            {{ request.user.department.name }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="modal-field">
+                                    <label for="{{ create_form.assignee.id_for_label }}">
+                                        Ответственный
+                                    </label>
+
+                                    {{ create_form.assignee }}
+
+                                    <div class="modal-error">
+                                        {{ create_form.assignee.errors }}
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
                     {% endif %}
                 </div>
 
