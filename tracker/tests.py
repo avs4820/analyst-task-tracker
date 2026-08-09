@@ -3551,6 +3551,32 @@ class TaskCreateViewTests(TestCase):
         self.assertContains(response, 'id="create-task-modal"')
         self.assertContains(response, "Создать задачу")
 
+    def test_task_list_form_modals_do_not_close_on_backdrop_click(self):
+        self.client.force_login(self.creator)
+
+        response = self.client.get(
+            reverse("tracker:task-list")
+        )
+
+        self.assertNotContains(
+            response,
+            'createTaskModal.addEventListener("click"',
+        )
+        self.assertNotContains(
+            response,
+            'artifactModal.addEventListener("click"',
+        )
+        self.assertContains(response, "data-create-task-close")
+        self.assertContains(response, "data-artifact-modal-close")
+        self.assertContains(
+            response,
+            'event.key === "Escape" && createTaskModal',
+        )
+        self.assertContains(
+            response,
+            'event.key === "Escape"\n                && artifactModal',
+        )
+
 
     def test_task_create_page_contains_artifact_formset(self):
         self.client.force_login(self.creator)

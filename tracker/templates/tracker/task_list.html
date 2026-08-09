@@ -2459,11 +2459,6 @@
         document.querySelectorAll("[data-create-task-close]").forEach((button) => {
             button.addEventListener("click", closeCreateTaskModal);
         });
-        createTaskModal.addEventListener("click", (event) => {
-            if (event.target === createTaskModal) {
-                closeCreateTaskModal();
-            }
-        });
         createTaskForm.addEventListener("submit", () => {
             if (typeof saveTaskListState === "function") {
                 saveTaskListState();
@@ -2982,12 +2977,6 @@
             "[data-artifact-modal-close]"
         ).forEach((button) => {
             button.addEventListener("click", closeArtifactModal);
-        });
-
-        artifactModal.addEventListener("click", (event) => {
-            if (event.target === artifactModal) {
-                closeArtifactModal();
-            }
         });
 
         document.addEventListener("keydown", (event) => {
