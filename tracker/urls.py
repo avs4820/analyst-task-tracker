@@ -10,6 +10,7 @@ from .views import (
     task_list,
     task_status_update,
     task_update,
+    status_summary,
 )
 
 
@@ -20,6 +21,11 @@ urlpatterns = [
     path("", dashboard, name="dashboard"),
     path("administration/", administration, name="administration"),
     path("tasks/", task_list, name="task-list"),
+    path(
+        "tasks/status-summary/",
+        status_summary,
+        name="status-summary",
+    ),
     path("tasks/create/", task_create, name="task-create"),
     path("tasks/<int:task_id>/edit/", task_update, name="task-update"),
     path(

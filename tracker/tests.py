@@ -4651,3 +4651,423 @@ class TaskPopupCreateTests(TestCase):
             response.context["create_form"].errors,
         )
         self.assertEqual(Task.objects.count(), 0)
+
+
+class StatusSummaryViewTests(TestCase):
+    def setUp(self):
+        self.localdate_patcher = patch(
+            "tracker.views.timezone.localdate",
+            return_value=date(2026, 8, 9),
+        )
+        self.localdate_patcher.start()
+        self.addCleanup(self.localdate_patcher.stop)
+
+        self.bsa_department = get_bsa_department()
+        self.bi_department = Department.objects.create(
+            code="bi-summary",
+            name="Business Intelligence Summary",
+        )
+        self.employee_role, _ = Role.objects.get_or_create(
+            code="employee",
+            defaults={"name": "Employee"},
+        )
+        self.manager_role, _ = Role.objects.get_or_create(
+            code="manager",
+            defaults={"name": "Manager"},
+        )
+        self.head_role, _ = Role.objects.get_or_create(
+            code="head",
+            defaults={"name": "Head"},
+        )
+        self.administrator_role, _ = Role.objects.get_or_create(
+            code="administrator",
+            defaults={"name": "Administrator"},
+        )
+        self.employee = User.objects.create(
+            login="summary_employee",
+            name="Summary Employee",
+            role=self.employee_role,
+            department=self.bsa_department,
+        )
+        self.colleague = User.objects.create(
+            login="summary_colleague",
+            name="Summary Colleague",
+            role=self.employee_role,
+            department=self.bsa_department,
+        )
+        self.other_employee = User.objects.create(
+            login="summary_other_employee",
+            name="Other Department Employee",
+            role=self.employee_role,
+            department=self.bi_department,
+        )
+        self.manager = User.objects.create(
+            login="summary_manager",
+            name="Summary Manager",
+            role=self.manager_role,
+            department=self.bsa_department,
+        )
+        self.head = User.objects.create(
+            login="summary_head",
+            name="Summary Head",
+            role=self.head_role,
+            department=self.bsa_department,
+        )
+        self.administrator = User.objects.create(
+            login="summary_administrator",
+            name="Summary Administrator",
+            role=self.administrator_role,
+            department=self.bsa_department,
+        )
+        self.stream = ProjectStream.objects.create(
+            name="Summary Stream",
+        )
+        self.new_status = TaskStatus.objects.create(
+            name="Summary New",
+            code="summary-new",
+        )
+        self.done_status = TaskStatus.objects.create(
+            name="Summary Done",
+            code="done",
+            is_final=True,
+        )
+        self.own_task = Task.objects.create(
+            project_stream=self.stream,
+            department=self.bsa_department,
+            summary="Own task description",
+            external_number="SUM-1",
+            external_url="https://example.com/SUM-1",
+            assignee=self.employee,
+            status=self.new_status,
+            created_by=self.manager,
+        )
+        self.colleague_task = Task.objects.create(
+            project_stream=self.stream,
+            department=self.bsa_department,
+            summary="Colleague task description",
+            external_number="SUM-2",
+            assignee=self.colleague,
+            status=self.new_status,
+            created_by=self.manager,
+        )
+        self.other_department_task = Task.objects.create(
+            project_stream=self.stream,
+            department=self.bi_department,
+            summary="Other department task description",
+            external_number="SUM-3",
+            assignee=self.other_employee,
+            status=self.new_status,
+            created_by=self.head,
+        )
+        self.done_task = Task.objects.create(
+            project_stream=self.stream,
+            department=self.bsa_department,
+            summary="Completed task description",
+            external_number="SUM-4",
+            assignee=self.employee,
+            status=self.done_status,
+            created_by=self.manager,
+        )
+
+    def visible_tasks(self, response):
+        return {
+            task
+            for group in response.context["groups"]
+            for task in group["tasks"]
+        }
+
+    def test_summary_requires_login(self):
+        response = self.client.get(reverse("tracker:status-summary"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("accounts:login"), response.url)
+
+    def test_summary_button_is_available_to_all_roles(self):
+        for user in (
+            self.employee,
+            self.manager,
+            self.head,
+            self.administrator,
+        ):
+            with self.subTest(role=user.role.code):
+                self.client.force_login(user)
+                response = self.client.get(reverse("tracker:task-list"))
+
+                self.assertContains(response, "Сводка по статусам")
+                self.assertContains(
+                    response,
+                    reverse("tracker:status-summary"),
+                )
+
+    def test_employee_sees_only_own_active_tasks(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.get(reverse("tracker:status-summary"))
+
+        self.assertEqual(self.visible_tasks(response), {self.own_task})
+        self.assertEqual(response.context["selected_grouping"], "none")
+
+    def test_manager_sees_only_tasks_from_own_department(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(reverse("tracker:status-summary"))
+
+        self.assertEqual(
+            self.visible_tasks(response),
+            {self.own_task, self.colleague_task},
+        )
+        self.assertEqual(response.context["selected_grouping"], "assignee")
+
+    def test_manager_cannot_select_another_department_or_department_grouping(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("tracker:status-summary"),
+            {
+                "department": self.bi_department.id,
+                "grouping": "department",
+            },
+        )
+
+        self.assertEqual(
+            self.visible_tasks(response),
+            {self.own_task, self.colleague_task},
+        )
+        self.assertEqual(response.context["selected_department"], "")
+        self.assertEqual(response.context["selected_grouping"], "assignee")
+
+    def test_head_sees_tasks_from_all_departments(self):
+        self.client.force_login(self.head)
+
+        response = self.client.get(reverse("tracker:status-summary"))
+
+        self.assertEqual(
+            self.visible_tasks(response),
+            {
+                self.own_task,
+                self.colleague_task,
+                self.other_department_task,
+            },
+        )
+        self.assertEqual(
+            response.context["selected_grouping"],
+            "department-assignee",
+        )
+
+    def test_summary_has_separate_number_and_description_columns(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(reverse("tracker:status-summary"))
+
+        self.assertContains(response, "Номер задачи")
+        self.assertContains(response, "Описание")
+        self.assertContains(response, "SUM-1")
+        self.assertContains(response, "Own task description")
+
+    def test_summary_displays_current_and_three_previous_weeks(self):
+        TaskWeeklyStatus.objects.create(
+            task=self.own_task,
+            week_start=date(2026, 8, 3),
+            text="Current summary status",
+            updated_by=self.employee,
+        )
+        self.client.force_login(self.employee)
+
+        response = self.client.get(reverse("tracker:status-summary"))
+
+        self.assertEqual(
+            response.context["week_starts"],
+            [
+                date(2026, 7, 13),
+                date(2026, 7, 20),
+                date(2026, 7, 27),
+                date(2026, 8, 3),
+            ],
+        )
+        self.assertContains(response, "Current summary status")
+        self.assertEqual(response.context["filled_count"], 1)
+        self.assertEqual(response.context["missing_count"], 0)
+
+    def test_missing_status_filter_uses_current_week(self):
+        TaskWeeklyStatus.objects.create(
+            task=self.own_task,
+            week_start=date(2026, 8, 3),
+            text="Current summary status",
+            updated_by=self.employee,
+        )
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("tracker:status-summary"),
+            {"missing_only": "1"},
+        )
+
+        self.assertEqual(
+            self.visible_tasks(response),
+            {self.colleague_task},
+        )
+
+    def test_xlsx_export_uses_manager_visibility_and_current_filters(self):
+        from io import BytesIO
+
+        from openpyxl import load_workbook
+
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("tracker:status-summary"),
+            {"format": "xlsx"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Type"],
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet",
+        )
+        workbook = load_workbook(BytesIO(response.content))
+        worksheet = workbook["Сводка по статусам"]
+        exported_numbers = {
+            worksheet.cell(row=row, column=3).value
+            for row in range(2, worksheet.max_row + 1)
+        }
+
+        self.assertEqual(exported_numbers, {"SUM-1", "SUM-2"})
+        self.assertEqual(
+            worksheet.cell(row=1, column=3).value,
+            "Номер задачи",
+        )
+        self.assertEqual(
+            worksheet.cell(row=1, column=4).value,
+            "Описание",
+        )
+
+    def test_final_only_filter_returns_only_done_and_cancelled_tasks(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("tracker:status-summary"),
+            {
+                "final_only": "1",
+                "show_final": "1",
+                "show_final_before_final_only": "0",
+            },
+        )
+
+        self.assertEqual(self.visible_tasks(response), {self.done_task})
+        self.assertTrue(response.context["final_only"])
+        self.assertTrue(response.context["show_final"])
+        self.assertEqual(
+            response.context["show_final_before_final_only"],
+            "0",
+        )
+        self.assertContains(response, "Только отменённые и завершённые")
+        self.assertRegex(
+            response.content.decode(),
+            r'id="show-final-filter"[\s\S]*?disabled',
+        )
+
+    def test_final_only_xlsx_export_respects_manager_visibility(self):
+        from io import BytesIO
+
+        from openpyxl import load_workbook
+
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("tracker:status-summary"),
+            {
+                "format": "xlsx",
+                "final_only": "1",
+                "show_final": "1",
+                "show_final_before_final_only": "0",
+            },
+        )
+        workbook = load_workbook(BytesIO(response.content))
+        worksheet = workbook["Сводка по статусам"]
+        exported_numbers = {
+            worksheet.cell(row=row, column=3).value
+            for row in range(2, worksheet.max_row + 1)
+        }
+
+        self.assertEqual(exported_numbers, {"SUM-4"})
+
+    def test_search_and_export_have_independent_submit_behavior(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(reverse("tracker:status-summary"))
+        html = response.content.decode()
+
+        self.assertRegex(
+            html,
+            r'id="summary-export-button"\s+type="button"',
+        )
+        self.assertIn(
+            'searchInput.addEventListener("search"',
+            html,
+        )
+        self.assertIn(
+            'if (!searchInput.value)',
+            html,
+        )
+        self.assertIn(
+            'showFinalBeforeFinalOnly.value = showFinalFilter.checked',
+            html,
+        )
+        self.assertIn(
+            'showFinalFilter.checked = (',
+            html,
+        )
+
+    def test_task_list_and_summary_use_expected_header_actions(self):
+        self.client.force_login(self.manager)
+
+        task_list_response = self.client.get(
+            reverse("tracker:task-list")
+        )
+        summary_response = self.client.get(
+            reverse("tracker:status-summary")
+        )
+        task_list_html = task_list_response.content.decode()
+        summary_html = summary_response.content.decode()
+
+        self.assertLess(
+            task_list_html.index('id="create-task-button"'),
+            task_list_html.index(
+                f'href="{reverse("tracker:status-summary")}"'
+            ),
+        )
+        self.assertLess(
+            task_list_html.index(
+                f'href="{reverse("tracker:status-summary")}"'
+            ),
+            task_list_html.index('data-user-menu>'),
+        )
+        self.assertLess(
+            summary_html.index('id="summary-task-list-button"'),
+            summary_html.index('data-user-menu>'),
+        )
+        self.assertContains(
+            summary_response,
+            reverse("tracker:task-list"),
+        )
+        self.assertNotContains(
+            summary_response,
+            'id="summary-create-task-button"',
+        )
+
+    def test_export_button_is_rendered_after_status_metrics(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(reverse("tracker:status-summary"))
+        html = response.content.decode()
+        metrics_start = html.index('<section class="metrics"')
+        metrics_end = html.index("</section>", metrics_start)
+        export_position = html.index('id="summary-export-button"')
+
+        self.assertGreater(export_position, metrics_start)
+        self.assertLess(export_position, metrics_end)
+        self.assertGreater(
+            export_position,
+            html.index("Нет статуса", metrics_start),
+        )

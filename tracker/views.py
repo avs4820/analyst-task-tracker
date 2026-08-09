@@ -4,11 +4,16 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Prefetch, Q
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
+
+from accounts.models import Department
 
 from .decorators import role_required
 from .forms import (
@@ -22,6 +27,146 @@ from .forms import (
 )
 from .models import Task, TaskArtifact, TaskStatus, TaskWeeklyStatus
 from .utils import get_week_start
+
+
+STATUS_SUMMARY_GROUPINGS = {
+    "department-assignee",
+    "department",
+    "assignee",
+    "none",
+}
+
+
+def get_status_summary_grouping(user, requested_grouping):
+    role_code = user.role.code
+
+    if role_code == "employee":
+        return "none"
+
+    if role_code == "manager":
+        if requested_grouping in {"assignee", "none"}:
+            return requested_grouping
+        return "assignee"
+
+    if requested_grouping in STATUS_SUMMARY_GROUPINGS:
+        return requested_grouping
+
+    return "department-assignee"
+
+
+def build_status_summary_groups(tasks, grouping):
+    if grouping == "none":
+        return [
+            {
+                "key": "all",
+                "label": "",
+                "tasks": tasks,
+                "missing_count": sum(
+                    not task.current_week_status_filled
+                    for task in tasks
+                ),
+            }
+        ]
+
+    groups = []
+    groups_by_key = {}
+
+    for task in tasks:
+        if grouping == "department-assignee":
+            key = f"{task.department_id}:{task.assignee_id}"
+            label = f"{task.department.name} / {task.assignee.name}"
+        elif grouping == "department":
+            key = f"department:{task.department_id}"
+            label = task.department.name
+        else:
+            key = f"assignee:{task.assignee_id}"
+            label = task.assignee.name
+
+        group = groups_by_key.get(key)
+
+        if group is None:
+            group = {
+                "key": key,
+                "label": label,
+                "tasks": [],
+                "missing_count": 0,
+            }
+            groups_by_key[key] = group
+            groups.append(group)
+
+        group["tasks"].append(task)
+
+        if not task.current_week_status_filled:
+            group["missing_count"] += 1
+
+    return groups
+
+
+def build_status_summary_workbook(tasks, week_starts):
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Сводка по статусам"
+
+    headers = [
+        "Отдел",
+        "Стрим",
+        "Номер задачи",
+        "Описание",
+        "Артефакты",
+        "Ответственный",
+        "Статус задачи",
+        *[
+            f"Статус за неделю с {week_start.strftime('%d.%m.%Y')}"
+            for week_start in week_starts
+        ],
+    ]
+    worksheet.append(headers)
+
+    header_fill = PatternFill("solid", fgColor="E5E7EB")
+
+    for cell in worksheet[1]:
+        cell.font = Font(bold=True)
+        cell.fill = header_fill
+        cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+    for task in tasks:
+        artifacts = "\n".join(
+            f"{artifact.name}: {artifact.url}"
+            for artifact in task.summary_artifacts
+        )
+        row = [
+            task.department.name,
+            task.project_stream.name,
+            task.external_number,
+            task.summary,
+            artifacts,
+            task.assignee.name,
+            task.status.name,
+            *[status["text"] for status in task.summary_statuses],
+        ]
+        worksheet.append(row)
+        row_number = worksheet.max_row
+
+        if task.external_url and task.external_number:
+            number_cell = worksheet.cell(row=row_number, column=3)
+            number_cell.hyperlink = task.external_url
+            number_cell.style = "Hyperlink"
+
+        for cell in worksheet[row_number]:
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+    widths = [18, 24, 18, 42, 32, 24, 20]
+    widths.extend([38] * len(week_starts))
+
+    for column_number, width in enumerate(widths, start=1):
+        worksheet.column_dimensions[
+            get_column_letter(column_number)
+        ].width = width
+
+    worksheet.freeze_panes = "H2"
+    worksheet.auto_filter.ref = worksheet.dimensions
+
+    return workbook
 
 
 @login_required
@@ -279,6 +424,201 @@ def task_list(request):
             "pagination_query": pagination_query,
             "create_form": create_form,
             "open_create_modal": open_create_modal,
+        },
+    )
+
+
+@login_required
+def status_summary(request):
+    current_week_start = get_week_start(timezone.localdate())
+    week_starts = [
+        current_week_start - timedelta(weeks=offset)
+        for offset in range(3, -1, -1)
+    ]
+    role_code = request.user.role.code
+
+    current_status_exists = TaskWeeklyStatus.objects.filter(
+        task_id=OuterRef("pk"),
+        week_start=current_week_start,
+    ).exclude(text="")
+
+    tasks = (
+        Task.objects.select_related(
+            "project_stream",
+            "status",
+            "assignee",
+            "department",
+        )
+        .annotate(
+            current_week_status_filled=Exists(
+                current_status_exists,
+            )
+        )
+        .prefetch_related(
+            Prefetch(
+                "artifacts",
+                queryset=TaskArtifact.objects.order_by("created_at"),
+                to_attr="summary_artifacts",
+            ),
+            Prefetch(
+                "weekly_statuses",
+                queryset=TaskWeeklyStatus.objects.filter(
+                    week_start__in=week_starts,
+                ).order_by("week_start"),
+                to_attr="summary_weekly_statuses",
+            ),
+        )
+    )
+
+    if role_code == "employee":
+        tasks = tasks.filter(assignee=request.user)
+    elif role_code == "manager":
+        if request.user.department_id:
+            tasks = tasks.filter(
+                department_id=request.user.department_id,
+            )
+        else:
+            tasks = tasks.none()
+    elif role_code not in {"head", "administrator"}:
+        tasks = tasks.none()
+
+    selected_department = request.GET.get("department", "").strip()
+
+    if role_code in {"head", "administrator"} and selected_department:
+        try:
+            selected_department_id = int(selected_department)
+        except ValueError:
+            selected_department = ""
+        else:
+            tasks = tasks.filter(
+                department_id=selected_department_id,
+            )
+    else:
+        selected_department = ""
+
+    search_value = request.GET.get("search", "").strip()
+
+    if search_value:
+        tasks = tasks.filter(
+            Q(external_number__icontains=search_value)
+            | Q(summary__icontains=search_value)
+            | Q(project_stream__name__icontains=search_value)
+            | Q(assignee__name__icontains=search_value)
+            | Q(department__name__icontains=search_value)
+            | Q(department__code__icontains=search_value)
+        )
+
+    requested_show_final = request.GET.get("show_final") == "1"
+    final_only = request.GET.get("final_only") == "1"
+
+    if final_only:
+        show_final_before_final_only = request.GET.get(
+            "show_final_before_final_only",
+            "0",
+        )
+
+        if show_final_before_final_only not in {"0", "1"}:
+            show_final_before_final_only = "0"
+
+        show_final = True
+        tasks = tasks.filter(
+            status__code__in=["done", "cancelled"],
+        )
+    else:
+        show_final = requested_show_final
+        show_final_before_final_only = (
+            "1" if show_final else "0"
+        )
+
+    if not show_final:
+        tasks = tasks.exclude(
+            status__code__in=["done", "cancelled"],
+        )
+
+    missing_only = request.GET.get("missing_only") == "1"
+
+    if missing_only:
+        tasks = tasks.filter(current_week_status_filled=False)
+
+    tasks = list(
+        tasks.order_by(
+            "department__name",
+            "assignee__name",
+            "project_stream__name",
+            "external_number",
+            "id",
+        )
+    )
+
+    for task in tasks:
+        statuses_by_week = {
+            status.week_start: status
+            for status in task.summary_weekly_statuses
+        }
+        task.summary_statuses = [
+            {
+                "week_start": week_start,
+                "text": (
+                    statuses_by_week[week_start].text
+                    if week_start in statuses_by_week
+                    else ""
+                ),
+            }
+            for week_start in week_starts
+        ]
+
+    if request.GET.get("format") == "xlsx":
+        workbook = build_status_summary_workbook(tasks, week_starts)
+        response = HttpResponse(
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            )
+        )
+        response["Content-Disposition"] = (
+            "attachment; filename="
+            f'"status-summary-{current_week_start.isoformat()}.xlsx"'
+        )
+        workbook.save(response)
+        return response
+
+    grouping = get_status_summary_grouping(
+        request.user,
+        request.GET.get("grouping", ""),
+    )
+    groups = build_status_summary_groups(tasks, grouping)
+    filled_count = sum(
+        task.current_week_status_filled
+        for task in tasks
+    )
+
+    departments = Department.objects.none()
+
+    if role_code in {"head", "administrator"}:
+        departments = Department.objects.filter(
+            is_active=True,
+        ).order_by("name")
+
+    return render(
+        request,
+        "tracker/status_summary.html",
+        {
+            "groups": groups,
+            "tasks_count": len(tasks),
+            "filled_count": filled_count,
+            "missing_count": len(tasks) - filled_count,
+            "week_starts": week_starts,
+            "current_week_start": current_week_start,
+            "departments": departments,
+            "selected_department": selected_department,
+            "selected_grouping": grouping,
+            "selected_search": search_value,
+            "show_final": show_final,
+            "final_only": final_only,
+            "show_final_before_final_only": (
+                show_final_before_final_only
+            ),
+            "missing_only": missing_only,
         },
     )
 
