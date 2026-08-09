@@ -1732,6 +1732,19 @@ class TaskListViewTests(TestCase):
         )
         self.assertEqual(response.context["selected_search"], "needle")
 
+    def test_search_finds_tasks_by_assignee_name(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {"search": "Second Task List"},
+        )
+
+        self.assertEqual(
+            list(response.context["tasks"]),
+            [self.second_task],
+        )
+
     def test_sorting_is_applied_before_pagination(self):
         self.create_pagination_tasks(9)
         self.client.force_login(self.user)
@@ -1850,6 +1863,27 @@ class TaskListViewTests(TestCase):
             response,
             'searchInput.addEventListener("input"',
         )
+
+    def test_search_clear_resets_filter_and_search_regains_focus(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {"search": "RND-1234"},
+        )
+
+        self.assertContains(
+            response,
+            'searchInput.addEventListener("search"',
+        )
+        self.assertContains(response, 'searchParams.has(')
+        self.assertContains(
+            response,
+            'name === "search" && !value.trim()',
+        )
+        self.assertContains(response, 'window.sessionStorage.setItem(')
+        self.assertContains(response, "restoreSearchFocus();")
+        self.assertContains(response, "searchInput.focus();")
 
     def test_employee_does_not_see_other_users_final_tasks(self):
         other_done_task = Task.objects.create(

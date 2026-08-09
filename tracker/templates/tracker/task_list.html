@@ -1386,7 +1386,7 @@
                     name="search"
                     value="{{ selected_search }}"
                     form="task-list-controls"
-                    placeholder="Поиск по номеру, описанию, отделу или проекту"
+                    placeholder="Поиск по номеру, описанию, сотруднику, отделу или проекту"
                     aria-label="Поиск задач"
                 >
 
@@ -3531,6 +3531,40 @@
             "tracker-task-list-state:"
             + window.location.pathname
             + ":{{ request.user.id }}";
+        const searchFocusKey = taskListStateKey + ":search-focus";
+
+        function requestSearchFocus() {
+            try {
+                window.sessionStorage.setItem(searchFocusKey, "1");
+            } catch (error) {
+                // Keep search usable when sessionStorage is unavailable.
+            }
+        }
+
+        function restoreSearchFocus() {
+            if (!searchInput) {
+                return;
+            }
+
+            let shouldFocus = false;
+
+            try {
+                shouldFocus = window.sessionStorage.getItem(
+                    searchFocusKey
+                ) === "1";
+                window.sessionStorage.removeItem(searchFocusKey);
+            } catch (error) {
+                return;
+            }
+
+            if (shouldFocus) {
+                searchInput.focus();
+                searchInput.setSelectionRange(
+                    searchInput.value.length,
+                    searchInput.value.length
+                );
+            }
+        }
 
         function readTaskListState() {
             try {
@@ -3667,6 +3701,10 @@
             url.searchParams.delete("format");
 
             formData.forEach((value, name) => {
+                if (name === "search" && !value.trim()) {
+                    return;
+                }
+
                 url.searchParams.set(name, value);
             });
 
@@ -3675,7 +3713,20 @@
 
         taskListControls.addEventListener("submit", (event) => {
             event.preventDefault();
+            requestSearchFocus();
             submitTaskListControls();
+        });
+
+        searchInput.addEventListener("search", () => {
+            if (
+                searchInput.value === ""
+                && new URL(window.location.href).searchParams.has(
+                    "search"
+                )
+            ) {
+                requestSearchFocus();
+                submitTaskListControls();
+            }
         });
 
         taskSortSelect.addEventListener(
@@ -3706,6 +3757,7 @@
         });
 
         restoreTaskListState();
+        restoreSearchFocus();
         const olderWeekButton = document.getElementById(
             "older-week-button"
         );
