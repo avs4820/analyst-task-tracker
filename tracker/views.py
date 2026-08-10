@@ -25,7 +25,13 @@ from .forms import (
     TaskStatusUpdateForm,
     TaskWeeklyStatusForm,
 )
-from .models import Task, TaskArtifact, TaskStatus, TaskWeeklyStatus
+from .models import (
+    ProjectStream,
+    Task,
+    TaskArtifact,
+    TaskStatus,
+    TaskWeeklyStatus,
+)
 from .utils import get_week_start
 
 
@@ -33,6 +39,7 @@ STATUS_SUMMARY_GROUPINGS = {
     "department-assignee",
     "department",
     "assignee",
+    "stream",
     "none",
 }
 
@@ -44,14 +51,14 @@ def get_status_summary_grouping(user, requested_grouping):
         return "none"
 
     if role_code == "manager":
-        if requested_grouping in {"assignee", "none"}:
+        if requested_grouping in {"assignee", "stream", "none"}:
             return requested_grouping
-        return "assignee"
+        return "stream"
 
     if requested_grouping in STATUS_SUMMARY_GROUPINGS:
         return requested_grouping
 
-    return "department-assignee"
+    return "stream"
 
 
 def build_status_summary_groups(tasks, grouping):
@@ -78,6 +85,9 @@ def build_status_summary_groups(tasks, grouping):
         elif grouping == "department":
             key = f"department:{task.department_id}"
             label = task.department.name
+        elif grouping == "stream":
+            key = f"stream:{task.project_stream_id}"
+            label = task.project_stream.name
         else:
             key = f"assignee:{task.assignee_id}"
             label = task.assignee.name
@@ -99,7 +109,10 @@ def build_status_summary_groups(tasks, grouping):
         if not task.current_week_status_filled:
             group["missing_count"] += 1
 
-    return groups
+    return sorted(
+        groups,
+        key=lambda group: group["label"].casefold(),
+    )
 
 
 def build_status_summary_workbook(tasks, week_starts):
@@ -482,6 +495,41 @@ def status_summary(request):
     elif role_code not in {"head", "administrator"}:
         tasks = tasks.none()
 
+    available_streams = list(
+        ProjectStream.objects.filter(
+            id__in=tasks.order_by().values("project_stream_id"),
+        ).order_by("name")
+    )
+    available_stream_ids = {
+        stream.id
+        for stream in available_streams
+    }
+    requested_stream_ids = set()
+
+    for stream_value in request.GET.getlist("stream"):
+        try:
+            stream_id = int(stream_value)
+        except (TypeError, ValueError):
+            continue
+
+        if stream_id in available_stream_ids:
+            requested_stream_ids.add(stream_id)
+
+    selected_streams = [
+        stream
+        for stream in available_streams
+        if stream.id in requested_stream_ids
+    ]
+    selected_stream_ids = {
+        stream.id
+        for stream in selected_streams
+    }
+
+    if selected_stream_ids:
+        tasks = tasks.filter(
+            project_stream_id__in=selected_stream_ids,
+        )
+
     selected_department = request.GET.get("department", "").strip()
 
     if role_code in {"head", "administrator"} and selected_department:
@@ -610,6 +658,9 @@ def status_summary(request):
             "week_starts": week_starts,
             "current_week_start": current_week_start,
             "departments": departments,
+            "available_streams": available_streams,
+            "selected_streams": selected_streams,
+            "selected_stream_ids": selected_stream_ids,
             "selected_department": selected_department,
             "selected_grouping": grouping,
             "selected_search": search_value,

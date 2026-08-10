@@ -178,7 +178,7 @@
             display: grid;
             grid-template-columns:
                 minmax(240px, 1.4fr)
-                repeat(2, minmax(180px, 0.7fr))
+                repeat(3, minmax(180px, 0.7fr))
                 auto;
             gap: 10px;
             padding: 14px;
@@ -208,6 +208,116 @@
             border-radius: 7px;
             color: #1f2937;
             background: #fff;
+        }
+
+        .stream-multiselect {
+            position: relative;
+        }
+
+        .stream-multiselect-button {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            width: 100%;
+            min-height: 40px;
+            padding: 8px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 7px;
+            color: #1f2937;
+            background: #fff;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .stream-multiselect-arrow {
+            flex: 0 0 auto;
+            width: 7px;
+            height: 7px;
+            border-right: 2px solid currentColor;
+            border-bottom: 2px solid currentColor;
+            transform: translateY(-2px) rotate(45deg);
+        }
+
+        .stream-multiselect.open .stream-multiselect-arrow {
+            transform: translateY(2px) rotate(225deg);
+        }
+
+        .stream-multiselect-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            z-index: 40;
+            width: max(100%, 280px);
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 9px;
+            background: #fff;
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+        }
+
+        .stream-multiselect.open .stream-multiselect-dropdown {
+            display: block;
+        }
+
+        .stream-multiselect-options {
+            max-height: 240px;
+            overflow-y: auto;
+        }
+
+        .stream-multiselect-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 7px 6px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .stream-multiselect-option:hover {
+            background: #f3f4f6;
+        }
+
+        .stream-multiselect-option input {
+            flex: 0 0 auto;
+            width: 16px;
+            height: 16px;
+            min-height: 0;
+            margin: 1px 0 0;
+            padding: 0;
+            accent-color: #2563eb;
+        }
+
+        .stream-multiselect-empty {
+            margin: 0;
+            padding: 10px 6px;
+            color: #6b7280;
+            font-size: 13px;
+        }
+
+        .stream-multiselect-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .stream-multiselect-actions button {
+            padding: 7px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 7px;
+            color: #374151;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .stream-multiselect-actions .apply-stream-filter {
+            color: #fff;
+            border-color: #2563eb;
+            background: #2563eb;
         }
 
         .control-actions {
@@ -416,10 +526,30 @@
             background: #fef2f2;
         }
 
-        .weekly-status-button {
-            display: -webkit-box;
-            width: 100%;
+        .weekly-status-cell {
+            position: relative;
+            height: 1px;
+            padding: 0 !important;
+        }
+
+        .weekly-status-spacer {
+            min-height: 70px;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .weekly-status-panel {
+            position: absolute;
+            inset: 6px 8px;
             min-height: 58px;
+            overflow: hidden;
+            border-radius: 6px;
+        }
+
+        .weekly-status-button {
+            display: block;
+            width: 100%;
+            height: 100%;
             padding: 7px 8px;
             overflow: hidden;
             border: 0;
@@ -429,17 +559,98 @@
             cursor: pointer;
             text-align: left;
             line-height: 1.4;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 3;
         }
 
         .weekly-status-button:hover {
             background: #eff6ff;
         }
 
-        .weekly-status-button.empty {
+        .weekly-status-scroll {
+            display: block;
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            scrollbar-width: thin;
+        }
+
+        .weekly-status-button.empty .weekly-status-scroll {
             color: #9ca3af;
             font-style: italic;
+        }
+
+        .weekly-status-copy {
+            position: absolute;
+            top: 6px;
+            right: 14px;
+            z-index: 2;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            padding: 0;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            color: #4b5563;
+            background: #fff;
+            cursor: pointer;
+            font-size: 15px;
+            line-height: 1;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 7px rgba(15, 23, 42, 0.18);
+            transition:
+                opacity 120ms ease,
+                transform 120ms ease;
+        }
+
+        .weekly-status-panel:hover .weekly-status-copy,
+        .weekly-status-panel:focus-within .weekly-status-copy,
+        .weekly-status-copy.copy-result {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+
+        .weekly-status-copy:hover:not(:disabled) {
+            color: #1d4ed8;
+            border-color: #93c5fd;
+            background: #eff6ff;
+        }
+
+        .weekly-status-copy:disabled {
+            color: #9ca3af;
+            background: #f9fafb;
+            cursor: not-allowed;
+            opacity: 0.65;
+        }
+
+        .weekly-status-copy.copied {
+            color: #047857;
+            border-color: #6ee7b7;
+            background: #ecfdf5;
+        }
+
+        @media (hover: none) {
+            .weekly-status-copy {
+                opacity: 1;
+                pointer-events: auto;
+                transform: translateY(0);
+            }
+        }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
         }
 
         .current-week-cell {
@@ -638,6 +849,84 @@
                 >
             </div>
 
+            <div class="control-field">
+                <label for="stream-multiselect-button">Стрим</label>
+
+                <div
+                    class="stream-multiselect"
+                    data-stream-multiselect
+                >
+                    <button
+                        class="stream-multiselect-button"
+                        id="stream-multiselect-button"
+                        type="button"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                        aria-controls="stream-multiselect-dropdown"
+                        data-stream-multiselect-button
+                    >
+                        <span data-stream-multiselect-label>
+                            {% if selected_streams|length == 1 %}
+                                {{ selected_streams.0.name }}
+                            {% elif selected_streams|length > 1 %}
+                                Выбрано: {{ selected_streams|length }}
+                            {% else %}
+                                Все стримы
+                            {% endif %}
+                        </span>
+
+                        <span
+                            class="stream-multiselect-arrow"
+                            aria-hidden="true"
+                        ></span>
+                    </button>
+
+                    <div
+                        class="stream-multiselect-dropdown"
+                        id="stream-multiselect-dropdown"
+                        data-stream-multiselect-dropdown
+                    >
+                        <div class="stream-multiselect-options">
+                            {% for stream in available_streams %}
+                                <label class="stream-multiselect-option">
+                                    <input
+                                        type="checkbox"
+                                        name="stream"
+                                        value="{{ stream.id }}"
+                                        data-stream-checkbox
+                                        data-stream-name="{{ stream.name }}"
+                                        {% if stream.id in selected_stream_ids %}checked{% endif %}
+                                    >
+
+                                    <span>{{ stream.name }}</span>
+                                </label>
+                            {% empty %}
+                                <p class="stream-multiselect-empty">
+                                    Доступных стримов нет.
+                                </p>
+                            {% endfor %}
+                        </div>
+
+                        <div class="stream-multiselect-actions">
+                            <button
+                                type="button"
+                                data-stream-clear
+                            >
+                                Очистить
+                            </button>
+
+                            <button
+                                class="apply-stream-filter"
+                                type="button"
+                                data-stream-apply
+                            >
+                                Применить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {% if request.user.role.code == "head" or request.user.role.code == "administrator" %}
                 <div class="control-field">
                     <label for="summary-department">Отдел</label>
@@ -668,6 +957,13 @@
                         name="grouping"
                         data-auto-submit
                     >
+                        <option
+                            value="stream"
+                            {% if selected_grouping == "stream" %}selected{% endif %}
+                        >
+                            По стриму
+                        </option>
+
                         {% if request.user.role.code == "head" or request.user.role.code == "administrator" %}
                             <option
                                 value="department-assignee"
@@ -894,22 +1190,45 @@
 
                                 {% for weekly_status in task.summary_statuses %}
                                     <td
-                                        {% if weekly_status.week_start == current_week_start %}class="current-week-cell"{% endif %}
+                                        class="weekly-status-cell{% if weekly_status.week_start == current_week_start %} current-week-cell{% endif %}"
                                     >
-                                        <button
-                                            class="weekly-status-button{% if not weekly_status.text %} empty{% endif %}"
-                                            type="button"
-                                            data-status-detail
-                                            data-task-number="{{ task.external_number|default:'Без номера' }}"
-                                            data-week-label="{{ weekly_status.week_start|date:'d.m.Y' }}"
-                                            data-status-text="{{ weekly_status.text|default:'Статус за эту неделю не предоставлен.' }}"
-                                        >
-                                            {% if weekly_status.text %}
-                                                {{ weekly_status.text }}
-                                            {% else %}
-                                                Нет статуса
-                                            {% endif %}
-                                        </button>
+                                        <div
+                                            class="weekly-status-spacer"
+                                            aria-hidden="true"
+                                        ></div>
+
+                                        <div class="weekly-status-panel">
+                                            <button
+                                                class="weekly-status-button{% if not weekly_status.text %} empty{% endif %}"
+                                                type="button"
+                                                data-status-detail
+                                                data-task-number="{{ task.external_number|default:'Без номера' }}"
+                                                data-week-label="{{ weekly_status.week_start|date:'d.m.Y' }}"
+                                                data-status-text="{{ weekly_status.text|default:'Статус за эту неделю не предоставлен.' }}"
+                                            >
+                                                <span class="weekly-status-scroll">{% if weekly_status.text %}{{ weekly_status.text }}{% else %}Нет статуса{% endif %}</span>
+                                            </button>
+
+                                            <button
+                                                class="weekly-status-copy"
+                                                type="button"
+                                                data-status-copy
+                                                aria-label="{% if weekly_status.text %}Скопировать статус задачи {{ task.external_number|default:'Без номера' }} за неделю с {{ weekly_status.week_start|date:'d.m.Y' }}{% else %}Статус отсутствует{% endif %}"
+                                                title="{% if weekly_status.text %}Скопировать статус{% else %}Статус отсутствует{% endif %}"
+                                                {% if not weekly_status.text %}disabled{% endif %}
+                                            >
+                                                <span
+                                                    aria-hidden="true"
+                                                    data-copy-icon
+                                                >⧉</span>
+
+                                                <span
+                                                    class="visually-hidden"
+                                                    aria-live="polite"
+                                                    data-copy-feedback
+                                                ></span>
+                                            </button>
+                                        </div>
                                     </td>
                                 {% endfor %}
                             </tr>
@@ -962,6 +1281,27 @@
         const showFinalBeforeFinalOnly = document.getElementById(
             "show-final-before-final-only"
         );
+        const streamMultiselect = document.querySelector(
+            "[data-stream-multiselect]"
+        );
+        const streamMultiselectButton = document.querySelector(
+            "[data-stream-multiselect-button]"
+        );
+        const streamMultiselectDropdown = document.querySelector(
+            "[data-stream-multiselect-dropdown]"
+        );
+        const streamMultiselectLabel = document.querySelector(
+            "[data-stream-multiselect-label]"
+        );
+        const streamCheckboxes = Array.from(
+            document.querySelectorAll("[data-stream-checkbox]")
+        );
+        const streamApplyButton = document.querySelector(
+            "[data-stream-apply]"
+        );
+        const streamClearButton = document.querySelector(
+            "[data-stream-clear]"
+        );
         const userMenu = document.querySelector("[data-user-menu]");
         const userMenuButton = document.querySelector(
             "[data-user-menu-button]"
@@ -971,6 +1311,98 @@
             userMenu.classList.remove("open");
             userMenuButton.setAttribute("aria-expanded", "false");
         }
+
+        let streamSelectionSnapshot = [];
+
+        function selectedStreamCheckboxes() {
+            return streamCheckboxes.filter(
+                (checkbox) => checkbox.checked
+            );
+        }
+
+        function updateStreamMultiselectLabel() {
+            const selectedCheckboxes = selectedStreamCheckboxes();
+
+            if (selectedCheckboxes.length === 0) {
+                streamMultiselectLabel.textContent = "Все стримы";
+            } else if (selectedCheckboxes.length === 1) {
+                streamMultiselectLabel.textContent = (
+                    selectedCheckboxes[0].dataset.streamName
+                );
+            } else {
+                streamMultiselectLabel.textContent = (
+                    `Выбрано: ${selectedCheckboxes.length}`
+                );
+            }
+        }
+
+        function closeStreamMultiselect(restoreSelection = true) {
+            if (!streamMultiselect.classList.contains("open")) {
+                return;
+            }
+
+            if (restoreSelection) {
+                const selectedValues = new Set(
+                    streamSelectionSnapshot
+                );
+
+                streamCheckboxes.forEach((checkbox) => {
+                    checkbox.checked = selectedValues.has(
+                        checkbox.value
+                    );
+                });
+                updateStreamMultiselectLabel();
+            }
+
+            streamMultiselect.classList.remove("open");
+            streamMultiselectButton.setAttribute(
+                "aria-expanded",
+                "false"
+            );
+        }
+
+        streamMultiselectButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+
+            if (streamMultiselect.classList.contains("open")) {
+                closeStreamMultiselect(true);
+                return;
+            }
+
+            streamSelectionSnapshot = selectedStreamCheckboxes().map(
+                (checkbox) => checkbox.value
+            );
+            streamMultiselect.classList.add("open");
+            streamMultiselectButton.setAttribute(
+                "aria-expanded",
+                "true"
+            );
+        });
+
+        streamMultiselectDropdown.addEventListener("click", (event) => {
+            event.stopPropagation();
+        });
+
+        streamCheckboxes.forEach((checkbox) => {
+            checkbox.addEventListener(
+                "change",
+                updateStreamMultiselectLabel
+            );
+        });
+
+        streamApplyButton.addEventListener("click", () => {
+            closeStreamMultiselect(false);
+            controlsForm.requestSubmit();
+        });
+
+        streamClearButton.addEventListener("click", () => {
+            streamCheckboxes.forEach((checkbox) => {
+                checkbox.checked = false;
+            });
+            updateStreamMultiselectLabel();
+            closeStreamMultiselect(false);
+            controlsForm.requestSubmit();
+        });
 
         userMenuButton.addEventListener("click", (event) => {
             event.stopPropagation();
@@ -987,16 +1419,32 @@
             event.stopPropagation();
         });
 
-        document.addEventListener("click", closeUserMenu);
+        document.addEventListener("click", () => {
+            closeUserMenu();
+            closeStreamMultiselect(true);
+        });
 
         document.addEventListener("keydown", (event) => {
-            if (event.key === "Escape") {
+            if (
+                event.key === "Escape"
+                && userMenu.classList.contains("open")
+            ) {
                 closeUserMenu();
                 userMenuButton.focus();
+            }
+
+            if (
+                event.key === "Escape"
+                && streamMultiselect.classList.contains("open")
+            ) {
+                closeStreamMultiselect(true);
+                streamMultiselectButton.focus();
             }
         });
 
         exportButton.addEventListener("click", () => {
+            closeStreamMultiselect(true);
+
             const formatInput = document.createElement("input");
 
             formatInput.type = "hidden";
@@ -1005,6 +1453,10 @@
             controlsForm.appendChild(formatInput);
             controlsForm.submit();
             formatInput.remove();
+        });
+
+        controlsForm.addEventListener("submit", () => {
+            closeStreamMultiselect(true);
         });
 
         searchInput.addEventListener("search", () => {
@@ -1064,6 +1516,102 @@
         );
         const statusDialogText = document.getElementById(
             "status-detail-text"
+        );
+
+        function copyWithFallback(text) {
+            const textArea = document.createElement("textarea");
+
+            textArea.value = text;
+            textArea.setAttribute("readonly", "");
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.opacity = "0";
+            document.body.appendChild(textArea);
+            textArea.select();
+
+            const copied = document.execCommand("copy");
+
+            textArea.remove();
+
+            if (!copied) {
+                throw new Error("Clipboard copy failed");
+            }
+        }
+
+        async function copyStatusText(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    return;
+                } catch (clipboardError) {
+                    // Use the fallback below when Clipboard API is denied.
+                }
+            }
+
+            copyWithFallback(text);
+        }
+
+        document.querySelectorAll("[data-status-copy]").forEach(
+            (button) => {
+                button.addEventListener("click", async (event) => {
+                    event.stopPropagation();
+
+                    if (button.disabled) {
+                        return;
+                    }
+
+                    const icon = button.querySelector("[data-copy-icon]");
+                    const feedback = button.querySelector(
+                        "[data-copy-feedback]"
+                    );
+                    const originalLabel = button.getAttribute(
+                        "aria-label"
+                    );
+                    const statusText = button
+                        .closest(".weekly-status-panel")
+                        .querySelector(".weekly-status-scroll")
+                        .textContent;
+
+                    button.classList.add("copy-result");
+
+                    try {
+                        await copyStatusText(statusText);
+                        button.classList.add("copied");
+                        icon.textContent = "✓";
+                        feedback.textContent = "Статус скопирован";
+                        button.setAttribute(
+                            "aria-label",
+                            "Статус скопирован"
+                        );
+                    } catch (error) {
+                        icon.textContent = "!";
+                        feedback.textContent = (
+                            "Не удалось скопировать статус"
+                        );
+                        button.setAttribute(
+                            "aria-label",
+                            "Не удалось скопировать статус"
+                        );
+                    }
+
+                    window.clearTimeout(button.copyFeedbackTimeout);
+                    button.copyFeedbackTimeout = window.setTimeout(
+                        () => {
+                            button.classList.remove(
+                                "copied",
+                                "copy-result"
+                            );
+                            icon.textContent = "⧉";
+                            feedback.textContent = "";
+                            button.setAttribute(
+                                "aria-label",
+                                originalLabel
+                            );
+                        },
+                        1600
+                    );
+                });
+            }
         );
 
         document.querySelectorAll("[data-status-detail]").forEach(

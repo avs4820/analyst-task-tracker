@@ -4816,7 +4816,7 @@ class StatusSummaryViewTests(TestCase):
             self.visible_tasks(response),
             {self.own_task, self.colleague_task},
         )
-        self.assertEqual(response.context["selected_grouping"], "assignee")
+        self.assertEqual(response.context["selected_grouping"], "stream")
 
     def test_manager_cannot_select_another_department_or_department_grouping(self):
         self.client.force_login(self.manager)
@@ -4834,7 +4834,7 @@ class StatusSummaryViewTests(TestCase):
             {self.own_task, self.colleague_task},
         )
         self.assertEqual(response.context["selected_department"], "")
-        self.assertEqual(response.context["selected_grouping"], "assignee")
+        self.assertEqual(response.context["selected_grouping"], "stream")
 
     def test_head_sees_tasks_from_all_departments(self):
         self.client.force_login(self.head)
@@ -4851,8 +4851,197 @@ class StatusSummaryViewTests(TestCase):
         )
         self.assertEqual(
             response.context["selected_grouping"],
-            "department-assignee",
+            "stream",
         )
+
+    def test_stream_is_default_grouping_and_groups_are_sorted_by_name(self):
+        alpha_stream = ProjectStream.objects.create(
+            name="Alpha Summary Stream",
+        )
+        alpha_task = Task.objects.create(
+            project_stream=alpha_stream,
+            department=self.bsa_department,
+            summary="Alpha stream task",
+            external_number="SUM-ALPHA",
+            assignee=self.colleague,
+            status=self.new_status,
+            created_by=self.manager,
+        )
+        self.client.force_login(self.manager)
+
+        response = self.client.get(reverse("tracker:status-summary"))
+
+        self.assertEqual(response.context["selected_grouping"], "stream")
+        self.assertEqual(
+            [group["label"] for group in response.context["groups"]],
+            ["Alpha Summary Stream", "Summary Stream"],
+        )
+        self.assertIn(
+            alpha_task,
+            response.context["groups"][0]["tasks"],
+        )
+        self.assertContains(response, "По стриму")
+
+    def test_manager_can_still_group_by_assignee(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("tracker:status-summary"),
+            {"grouping": "assignee"},
+        )
+
+        self.assertEqual(response.context["selected_grouping"], "assignee")
+        self.assertEqual(
+            [group["label"] for group in response.context["groups"]],
+            ["Summary Colleague", "Summary Employee"],
+        )
+
+    def test_stream_filter_options_only_include_role_accessible_tasks(self):
+        restricted_stream = ProjectStream.objects.create(
+            name="Restricted BI Stream",
+        )
+        Task.objects.create(
+            project_stream=restricted_stream,
+            department=self.bi_department,
+            summary="Restricted stream task",
+            external_number="SUM-RESTRICTED",
+            assignee=self.other_employee,
+            status=self.new_status,
+            created_by=self.head,
+        )
+        self.client.force_login(self.manager)
+
+        response = self.client.get(reverse("tracker:status-summary"))
+
+        self.assertEqual(
+            list(response.context["available_streams"]),
+            [self.stream],
+        )
+        self.assertNotContains(response, "Restricted BI Stream")
+
+    def test_stream_filter_restricts_tasks_and_shows_single_stream_name(self):
+        filtered_stream = ProjectStream.objects.create(
+            name="Filtered Summary Stream",
+        )
+        filtered_task = Task.objects.create(
+            project_stream=filtered_stream,
+            department=self.bsa_department,
+            summary="Filtered stream task",
+            external_number="SUM-FILTERED",
+            assignee=self.colleague,
+            status=self.new_status,
+            created_by=self.manager,
+        )
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("tracker:status-summary"),
+            {"stream": str(filtered_stream.id)},
+        )
+
+        self.assertEqual(self.visible_tasks(response), {filtered_task})
+        self.assertEqual(
+            response.context["selected_streams"],
+            [filtered_stream],
+        )
+        self.assertContains(response, "Filtered Summary Stream")
+
+    def test_stream_filter_supports_multiple_selection_and_count_label(self):
+        second_stream = ProjectStream.objects.create(
+            name="Second Filter Stream",
+        )
+        second_stream_task = Task.objects.create(
+            project_stream=second_stream,
+            department=self.bsa_department,
+            summary="Second stream task",
+            external_number="SUM-SECOND",
+            assignee=self.colleague,
+            status=self.new_status,
+            created_by=self.manager,
+        )
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("tracker:status-summary"),
+            {
+                "stream": [
+                    str(self.stream.id),
+                    str(second_stream.id),
+                ]
+            },
+        )
+
+        self.assertEqual(
+            self.visible_tasks(response),
+            {self.own_task, self.colleague_task, second_stream_task},
+        )
+        self.assertEqual(len(response.context["selected_streams"]), 2)
+        self.assertContains(response, "Выбрано: 2")
+        html = response.content.decode()
+        self.assertIn("streamSelectionSnapshot", html)
+        self.assertIn("closeStreamMultiselect(true)", html)
+        self.assertIn("closeStreamMultiselect(false)", html)
+
+    def test_stream_filter_ignores_inaccessible_stream_from_query(self):
+        restricted_stream = ProjectStream.objects.create(
+            name="Crafted Restricted Stream",
+        )
+        Task.objects.create(
+            project_stream=restricted_stream,
+            department=self.bi_department,
+            summary="Crafted restricted task",
+            external_number="SUM-CRAFTED",
+            assignee=self.other_employee,
+            status=self.new_status,
+            created_by=self.head,
+        )
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("tracker:status-summary"),
+            {"stream": str(restricted_stream.id)},
+        )
+
+        self.assertEqual(response.context["selected_streams"], [])
+        self.assertEqual(
+            self.visible_tasks(response),
+            {self.own_task, self.colleague_task},
+        )
+
+    def test_stream_filter_is_applied_to_xlsx_export(self):
+        from io import BytesIO
+
+        from openpyxl import load_workbook
+
+        export_stream = ProjectStream.objects.create(
+            name="Export Filter Stream",
+        )
+        Task.objects.create(
+            project_stream=export_stream,
+            department=self.bsa_department,
+            summary="Export filtered task",
+            external_number="SUM-EXPORT-FILTER",
+            assignee=self.colleague,
+            status=self.new_status,
+            created_by=self.manager,
+        )
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("tracker:status-summary"),
+            {
+                "stream": str(export_stream.id),
+                "format": "xlsx",
+            },
+        )
+        workbook = load_workbook(BytesIO(response.content))
+        worksheet = workbook["Сводка по статусам"]
+        exported_numbers = {
+            worksheet.cell(row=row, column=3).value
+            for row in range(2, worksheet.max_row + 1)
+        }
+
+        self.assertEqual(exported_numbers, {"SUM-EXPORT-FILTER"})
 
     def test_summary_has_separate_number_and_description_columns(self):
         self.client.force_login(self.manager)
@@ -4887,6 +5076,76 @@ class StatusSummaryViewTests(TestCase):
         self.assertContains(response, "Current summary status")
         self.assertEqual(response.context["filled_count"], 1)
         self.assertEqual(response.context["missing_count"], 0)
+
+    def test_weekly_status_panels_scroll_and_copy_full_text(self):
+        TaskWeeklyStatus.objects.create(
+            task=self.own_task,
+            week_start=date(2026, 8, 3),
+            text="Status text available for copying",
+            updated_by=self.employee,
+        )
+        self.client.force_login(self.employee)
+
+        response = self.client.get(reverse("tracker:status-summary"))
+        html = response.content.decode()
+
+        self.assertContains(response, 'class="weekly-status-cell', count=4)
+        self.assertContains(response, 'class="weekly-status-panel"', count=4)
+        self.assertContains(response, 'class="weekly-status-spacer"', count=4)
+        self.assertContains(response, 'class="weekly-status-scroll"', count=4)
+        self.assertContains(response, "data-status-copy")
+        self.assertContains(response, "Status text available for copying")
+        self.assertIn("navigator.clipboard.writeText(text)", html)
+        self.assertIn('document.execCommand("copy")', html)
+        self.assertIn('.querySelector(".weekly-status-scroll")', html)
+        self.assertIn("event.stopPropagation();", html)
+        self.assertIn('feedback.textContent = "Статус скопирован"', html)
+        self.assertIn(
+            ".weekly-status-panel:hover .weekly-status-copy",
+            html,
+        )
+        self.assertIn(
+            ".weekly-status-panel:focus-within .weekly-status-copy",
+            html,
+        )
+        self.assertIn("@media (hover: none)", html)
+        self.assertIn('button.classList.add("copy-result")', html)
+
+    def test_task_list_hides_current_status_copy_without_status_text(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.get(reverse("tracker:task-list"))
+        html = response.content.decode()
+        attribute_position = html.index("data-status-copy-current")
+        button_start = html.rfind("<button", 0, attribute_position)
+        button_end = html.index(">", attribute_position)
+        copy_button_markup = html[button_start:button_end]
+
+        self.assertIn("hidden", copy_button_markup)
+
+    def test_task_list_copies_saved_current_status_and_shows_button_after_ajax_save(self):
+        TaskWeeklyStatus.objects.create(
+            task=self.own_task,
+            week_start=date(2026, 8, 3),
+            text="Saved current status to copy",
+            updated_by=self.employee,
+        )
+        self.client.force_login(self.employee)
+
+        response = self.client.get(reverse("tracker:task-list"))
+        html = response.content.decode()
+        attribute_position = html.index("data-status-copy-current")
+        button_start = html.rfind("<button", 0, attribute_position)
+        button_end = html.index(">", attribute_position)
+        copy_button_markup = html[button_start:button_end]
+
+        self.assertNotIn("hidden", copy_button_markup)
+        self.assertContains(response, "Saved current status to copy")
+        self.assertIn("navigator.clipboard.writeText(text)", html)
+        self.assertIn('document.execCommand("copy")', html)
+        self.assertIn("event.stopPropagation();", html)
+        self.assertIn("currentCopyButton.hidden = false;", html)
+        self.assertIn("justify-content: space-between;", html)
 
     def test_missing_status_filter_uses_current_week(self):
         TaskWeeklyStatus.objects.create(

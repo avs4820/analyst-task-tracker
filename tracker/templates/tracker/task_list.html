@@ -1225,6 +1225,67 @@
             gap: 8px;
         }
 
+        .status-display-actions {
+            justify-content: space-between;
+        }
+
+        .status-actions-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .status-copy-current {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            width: 34px;
+            height: 34px;
+            margin-left: auto;
+            padding: 0;
+            border: 1px solid #dbe3ef;
+            border-radius: 7px;
+            color: #2563eb;
+            background: #eff6ff;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .status-copy-current:hover {
+            background: #dbeafe;
+        }
+
+        .status-copy-current.copied {
+            color: #047857;
+            border-color: #6ee7b7;
+            background: #ecfdf5;
+        }
+
+        .status-copy-current.copy-error {
+            color: #b91c1c;
+            border-color: #fca5a5;
+            background: #fef2f2;
+        }
+
+        .status-copy-current[hidden] {
+            display: none;
+        }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
         .status-menu {
             position: relative;
         }
@@ -1937,55 +1998,77 @@
                                             <p class="status-text status-empty">Статус за текущую неделю ещё не добавлен.</p>
                                         {% endif %}
 
-                                        <div class="status-actions">
-                                            <button
-                                                class="status-action edit"
-                                                type="button"
-                                                data-status-edit
-                                            >
-                                                {% if task.current_weekly_status %}
-                                                    Редактировать
-                                                {% else %}
-                                                    Добавить статус
-                                                {% endif %}
-                                            </button>
-
-                                            <div class="status-menu" data-status-menu>
+                                        <div class="status-actions status-display-actions">
+                                            <div class="status-actions-left">
                                                 <button
-                                                    class="status-menu-button"
+                                                    class="status-action edit"
                                                     type="button"
-                                                    title="Дополнительные действия"
-                                                    aria-label="Дополнительные действия со статусом"
-                                                    aria-expanded="false"
-                                                    data-status-menu-button
+                                                    data-status-edit
                                                 >
-                                                    ⋯
+                                                    {% if task.current_weekly_status %}
+                                                        Редактировать
+                                                    {% else %}
+                                                        Добавить статус
+                                                    {% endif %}
                                                 </button>
 
-                                                <div
-                                                    class="status-menu-dropdown"
-                                                    role="menu"
-                                                >
+                                                <div class="status-menu" data-status-menu>
                                                     <button
-                                                        class="status-menu-item"
+                                                        class="status-menu-button"
                                                         type="button"
-                                                        role="menuitem"
-                                                        data-status-copy-previous
-                                                        {% if not task.previous_weekly_status %}disabled{% endif %}
+                                                        title="Дополнительные действия"
+                                                        aria-label="Дополнительные действия со статусом"
+                                                        aria-expanded="false"
+                                                        data-status-menu-button
                                                     >
-                                                        Скопировать с прошлой недели
+                                                        ⋯
                                                     </button>
 
-                                                    <button
-                                                        class="status-menu-item"
-                                                        type="button"
-                                                        role="menuitem"
-                                                        data-status-insert-empty
+                                                    <div
+                                                        class="status-menu-dropdown"
+                                                        role="menu"
                                                     >
-                                                        Вставить «Обновлений нет»
-                                                    </button>
+                                                        <button
+                                                            class="status-menu-item"
+                                                            type="button"
+                                                            role="menuitem"
+                                                            data-status-copy-previous
+                                                            {% if not task.previous_weekly_status %}disabled{% endif %}
+                                                        >
+                                                            Скопировать с прошлой недели
+                                                        </button>
+
+                                                        <button
+                                                            class="status-menu-item"
+                                                            type="button"
+                                                            role="menuitem"
+                                                            data-status-insert-empty
+                                                        >
+                                                            Вставить «Обновлений нет»
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
+
+                                            <button
+                                                class="status-copy-current"
+                                                type="button"
+                                                title="Скопировать текущий статус"
+                                                aria-label="Скопировать текущий статус"
+                                                data-status-copy-current
+                                                {% if not task.current_weekly_status or not task.current_weekly_status.text %}hidden{% endif %}
+                                            >
+                                                <span
+                                                    aria-hidden="true"
+                                                    data-current-copy-icon
+                                                >⧉</span>
+
+                                                <span
+                                                    class="visually-hidden"
+                                                    aria-live="polite"
+                                                    data-current-copy-feedback
+                                                ></span>
+                                            </button>
                                         </div>
                                     </div>
 
@@ -3421,6 +3504,39 @@
             );
         }
 
+        function copyStatusWithFallback(text) {
+            const textArea = document.createElement("textarea");
+
+            textArea.value = text;
+            textArea.setAttribute("readonly", "");
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.opacity = "0";
+            document.body.appendChild(textArea);
+            textArea.select();
+
+            const copied = document.execCommand("copy");
+
+            textArea.remove();
+
+            if (!copied) {
+                throw new Error("Clipboard copy failed");
+            }
+        }
+
+        async function copyCurrentStatusText(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    return;
+                } catch (clipboardError) {
+                    // Use the fallback below when Clipboard API is denied.
+                }
+            }
+
+            copyStatusWithFallback(text);
+        }
+
         document.querySelectorAll(".week-column.current").forEach(
             (column) => {
                 const taskShell = column.closest(".task-shell");
@@ -3446,6 +3562,12 @@
                 );
                 const insertEmptyButton = column.querySelector(
                     "[data-status-insert-empty]"
+                );
+                const currentCopyButton = column.querySelector(
+                    "[data-status-copy-current]"
+                );
+                const statusParagraph = display.querySelector(
+                    ".status-text"
                 );
                 const previousStatusElement = taskShell.querySelector(
                     "[data-previous-status]"
@@ -3488,6 +3610,79 @@
                     editor.classList.add("open");
                     textarea.focus();
                 });
+
+                currentCopyButton.addEventListener(
+                    "click",
+                    async (event) => {
+                        event.stopPropagation();
+
+                        const statusText = statusParagraph.textContent
+                            .trim();
+                        const icon = currentCopyButton.querySelector(
+                            "[data-current-copy-icon]"
+                        );
+                        const feedback = currentCopyButton.querySelector(
+                            "[data-current-copy-feedback]"
+                        );
+
+                        if (
+                            !statusText
+                            || statusParagraph.classList.contains(
+                                "status-empty"
+                            )
+                        ) {
+                            return;
+                        }
+
+                        try {
+                            await copyCurrentStatusText(statusText);
+                            currentCopyButton.classList.add("copied");
+                            currentCopyButton.classList.remove(
+                                "copy-error"
+                            );
+                            icon.textContent = "✓";
+                            feedback.textContent = "Статус скопирован";
+                            currentCopyButton.setAttribute(
+                                "aria-label",
+                                "Статус скопирован"
+                            );
+                        } catch (error) {
+                            currentCopyButton.classList.add(
+                                "copy-error"
+                            );
+                            currentCopyButton.classList.remove("copied");
+                            icon.textContent = "!";
+                            feedback.textContent = (
+                                "Не удалось скопировать статус"
+                            );
+                            currentCopyButton.setAttribute(
+                                "aria-label",
+                                "Не удалось скопировать статус"
+                            );
+                        }
+
+                        window.clearTimeout(
+                            currentCopyButton.copyFeedbackTimeout
+                        );
+                        currentCopyButton.copyFeedbackTimeout = (
+                            window.setTimeout(
+                                () => {
+                                    currentCopyButton.classList.remove(
+                                        "copied",
+                                        "copy-error"
+                                    );
+                                    icon.textContent = "⧉";
+                                    feedback.textContent = "";
+                                    currentCopyButton.setAttribute(
+                                        "aria-label",
+                                        "Скопировать текущий статус"
+                                    );
+                                },
+                                1600
+                            )
+                        );
+                    }
+                );
 
                 cancelButton.addEventListener("click", () => {
                     textarea.value = savedTextareaValue;
@@ -3569,14 +3764,11 @@
                             );
                         }
 
-                        const statusParagraph = display.querySelector(
-                            ".status-text"
-                        );
-
                         statusParagraph.textContent = statusText;
                         statusParagraph.classList.remove("status-empty");
                         editButton.textContent = "Редактировать";
                         column.dataset.hasCurrentStatus = "true";
+                        currentCopyButton.hidden = false;
                         savedTextareaValue = statusText;
 
                         editor.classList.remove("open");
