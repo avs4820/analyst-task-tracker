@@ -533,12 +533,13 @@
         }
 
         .weekly-status-spacer {
-            min-height: 70px;
+            min-height: 180px;
             visibility: hidden;
             pointer-events: none;
         }
 
         .weekly-status-panel {
+            --weekly-status-surface: #fff;
             position: absolute;
             inset: 6px 8px;
             min-height: 58px;
@@ -561,7 +562,13 @@
             line-height: 1.4;
         }
 
-        .weekly-status-button:hover {
+        .weekly-status-panel:hover,
+        .weekly-status-panel:focus-within {
+            --weekly-status-surface: #eff6ff;
+        }
+
+        .weekly-status-panel:hover .weekly-status-button,
+        .weekly-status-panel:focus-within .weekly-status-button {
             background: #eff6ff;
         }
 
@@ -572,6 +579,27 @@
             overflow-y: auto;
             white-space: pre-wrap;
             scrollbar-width: thin;
+        }
+
+        .weekly-status-fade {
+            position: absolute;
+            right: 18px;
+            bottom: 7px;
+            left: 8px;
+            z-index: 1;
+            height: 34px;
+            background: linear-gradient(
+                to bottom,
+                transparent,
+                var(--weekly-status-surface)
+            );
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 120ms ease;
+        }
+
+        .weekly-status-panel.has-more-below .weekly-status-fade {
+            opacity: 1;
         }
 
         .weekly-status-button.empty .weekly-status-scroll {
@@ -655,6 +683,46 @@
 
         .current-week-cell {
             background: #f5f9ff;
+        }
+
+        .current-week-cell .weekly-status-panel {
+            --weekly-status-surface: #f5f9ff;
+        }
+
+        .current-week-cell .weekly-status-panel:hover,
+        .current-week-cell .weekly-status-panel:focus-within {
+            --weekly-status-surface: #eff6ff;
+        }
+
+        @media (hover: hover) {
+            .weekly-status-scroll {
+                scrollbar-color: transparent transparent;
+            }
+
+            .weekly-status-scroll::-webkit-scrollbar {
+                width: 7px;
+            }
+
+            .weekly-status-scroll::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            .weekly-status-scroll::-webkit-scrollbar-thumb {
+                border-radius: 999px;
+                background: transparent;
+            }
+
+            .weekly-status-panel:hover .weekly-status-scroll,
+            .weekly-status-panel:focus-within .weekly-status-scroll {
+                scrollbar-color: #cbd5e1 transparent;
+            }
+
+            .weekly-status-panel:hover
+                .weekly-status-scroll::-webkit-scrollbar-thumb,
+            .weekly-status-panel:focus-within
+                .weekly-status-scroll::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+            }
         }
 
         .group-row td {
@@ -1209,6 +1277,11 @@
                                                 <span class="weekly-status-scroll">{% if weekly_status.text %}{{ weekly_status.text }}{% else %}Нет статуса{% endif %}</span>
                                             </button>
 
+                                            <span
+                                                class="weekly-status-fade"
+                                                aria-hidden="true"
+                                            ></span>
+
                                             <button
                                                 class="weekly-status-copy"
                                                 type="button"
@@ -1491,6 +1564,66 @@
                 });
             }
         );
+
+        const weeklyStatusPanels = Array.from(
+            document.querySelectorAll(".weekly-status-panel")
+        );
+
+        function updateWeeklyStatusOverflow(panel) {
+            const scrollArea = panel.querySelector(
+                ".weekly-status-scroll"
+            );
+            const remainingScroll = (
+                scrollArea.scrollHeight
+                - scrollArea.scrollTop
+                - scrollArea.clientHeight
+            );
+
+            panel.classList.toggle(
+                "has-more-below",
+                remainingScroll > 2
+            );
+        }
+
+        const weeklyStatusResizeObserver = (
+            "ResizeObserver" in window
+                ? new ResizeObserver((entries) => {
+                    entries.forEach((entry) => {
+                        updateWeeklyStatusOverflow(
+                            entry.target.closest(
+                                ".weekly-status-panel"
+                            )
+                        );
+                    });
+                })
+                : null
+        );
+
+        weeklyStatusPanels.forEach((panel) => {
+            const scrollArea = panel.querySelector(
+                ".weekly-status-scroll"
+            );
+
+            scrollArea.addEventListener(
+                "scroll",
+                () => updateWeeklyStatusOverflow(panel),
+                {passive: true}
+            );
+
+            if (weeklyStatusResizeObserver) {
+                weeklyStatusResizeObserver.observe(scrollArea);
+            }
+
+            updateWeeklyStatusOverflow(panel);
+        });
+
+        window.addEventListener("load", () => {
+            weeklyStatusPanels.forEach(updateWeeklyStatusOverflow);
+        });
+
+        window.addEventListener("resize", () => {
+            weeklyStatusPanels.forEach(updateWeeklyStatusOverflow);
+        });
 
         document.querySelectorAll("[data-group-toggle]").forEach(
             (button) => {

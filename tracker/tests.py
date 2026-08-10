@@ -5093,6 +5093,7 @@ class StatusSummaryViewTests(TestCase):
         self.assertContains(response, 'class="weekly-status-panel"', count=4)
         self.assertContains(response, 'class="weekly-status-spacer"', count=4)
         self.assertContains(response, 'class="weekly-status-scroll"', count=4)
+        self.assertContains(response, 'class="weekly-status-fade"', count=4)
         self.assertContains(response, "data-status-copy")
         self.assertContains(response, "Status text available for copying")
         self.assertIn("navigator.clipboard.writeText(text)", html)
@@ -5109,6 +5110,12 @@ class StatusSummaryViewTests(TestCase):
             html,
         )
         self.assertIn("@media (hover: none)", html)
+        self.assertIn("@media (hover: hover)", html)
+        self.assertIn("min-height: 180px;", html)
+        self.assertIn("scrollbar-color: transparent transparent;", html)
+        self.assertIn("has-more-below", html)
+        self.assertIn('"ResizeObserver" in window', html)
+        self.assertIn("remainingScroll > 2", html)
         self.assertIn('button.classList.add("copy-result")', html)
 
     def test_task_list_hides_current_status_copy_without_status_text(self):
