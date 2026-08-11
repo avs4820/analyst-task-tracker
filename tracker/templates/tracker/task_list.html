@@ -1201,6 +1201,12 @@
             font-style: italic;
         }
 
+        .status-display {
+            display: flex;
+            flex: 1 0 auto;
+            flex-direction: column;
+        }
+
         .status-editor {
             display: none;
         }
@@ -1233,8 +1239,13 @@
             gap: 8px;
         }
 
+        .status-editor > .status-actions {
+            margin-top: 8px;
+        }
+
         .status-display-actions {
             justify-content: space-between;
+            margin-top: auto;
         }
 
         .status-actions-left {
@@ -3624,7 +3635,7 @@
 
                 function closeEditor() {
                     editor.classList.remove("open");
-                    display.style.display = "block";
+                    display.style.removeProperty("display");
                     column.style.minHeight = "";
                 }
 

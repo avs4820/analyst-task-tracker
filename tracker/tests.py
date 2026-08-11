@@ -5161,7 +5161,11 @@ class StatusSummaryViewTests(TestCase):
         html = response.content.decode()
 
         self.assertIn(".week-column.current {", html)
+        self.assertIn(".status-display {", html)
         self.assertIn("flex: 1 0 auto;", html)
+        self.assertIn(".status-editor > .status-actions {", html)
+        self.assertIn("margin-top: 8px;", html)
+        self.assertIn("margin-top: auto;", html)
         self.assertIn(
             "const columnHeight = column.getBoundingClientRect().height;",
             html,
@@ -5171,6 +5175,7 @@ class StatusSummaryViewTests(TestCase):
             html,
         )
         self.assertIn("openEditorWithText(textarea.value);", html)
+        self.assertIn('display.style.removeProperty("display");', html)
         self.assertIn('column.style.minHeight = "";', html)
 
     def test_missing_status_filter_uses_current_week(self):
