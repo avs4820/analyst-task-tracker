@@ -1155,6 +1155,11 @@
             background: #fafafa;
         }
 
+        .week-column.current {
+            display: flex;
+            flex-direction: column;
+        }
+
         .week-heading {
             display: flex;
             align-items: flex-start;
@@ -1201,10 +1206,13 @@
         }
 
         .status-editor.open {
-            display: block;
+            display: flex;
+            flex: 1 0 auto;
+            flex-direction: column;
         }
 
         .status-editor textarea {
+            flex: 1 0 auto;
             width: 100%;
             min-height: 128px;
             resize: vertical;
@@ -3601,7 +3609,10 @@
                 let savedTextareaValue = textarea.value;
 
                 function openEditorWithText(text) {
+                    const columnHeight = column.getBoundingClientRect().height;
+
                     textarea.value = text;
+                    column.style.minHeight = `${columnHeight}px`;
                     display.style.display = "none";
                     editor.classList.add("open");
                     textarea.focus();
@@ -3609,6 +3620,12 @@
                         textarea.value.length,
                         textarea.value.length
                     );
+                }
+
+                function closeEditor() {
+                    editor.classList.remove("open");
+                    display.style.display = "block";
+                    column.style.minHeight = "";
                 }
 
                 function requestReplacement(text, sourceLabel) {
@@ -3632,9 +3649,7 @@
 
                 editButton.addEventListener("click", () => {
                     savedTextareaValue = textarea.value;
-                    display.style.display = "none";
-                    editor.classList.add("open");
-                    textarea.focus();
+                    openEditorWithText(textarea.value);
                 });
 
                 currentCopyButton.addEventListener(
@@ -3712,8 +3727,7 @@
 
                 cancelButton.addEventListener("click", () => {
                     textarea.value = savedTextareaValue;
-                    editor.classList.remove("open");
-                    display.style.display = "block";
+                    closeEditor();
                 });
 
                 menuButton.addEventListener("click", (event) => {
@@ -3797,8 +3811,7 @@
                         currentCopyButton.hidden = false;
                         savedTextareaValue = statusText;
 
-                        editor.classList.remove("open");
-                        display.style.display = "block";
+                        closeEditor();
                     } catch (error) {
                         window.alert(error.message);
                     } finally {

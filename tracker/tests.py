@@ -5154,6 +5154,25 @@ class StatusSummaryViewTests(TestCase):
         self.assertIn("currentCopyButton.hidden = false;", html)
         self.assertIn("justify-content: space-between;", html)
 
+    def test_task_list_preserves_status_column_height_while_editing(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.get(reverse("tracker:task-list"))
+        html = response.content.decode()
+
+        self.assertIn(".week-column.current {", html)
+        self.assertIn("flex: 1 0 auto;", html)
+        self.assertIn(
+            "const columnHeight = column.getBoundingClientRect().height;",
+            html,
+        )
+        self.assertIn(
+            "column.style.minHeight = `${columnHeight}px`;",
+            html,
+        )
+        self.assertIn("openEditorWithText(textarea.value);", html)
+        self.assertIn('column.style.minHeight = "";', html)
+
     def test_missing_status_filter_uses_current_week(self):
         TaskWeeklyStatus.objects.create(
             task=self.own_task,
