@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="{{ ui_theme }}">
 <head>
     <meta charset="UTF-8">
     <meta
@@ -1450,6 +1450,7 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="/static/tracker/theme.css">
 </head>
 
 <body>
@@ -1498,6 +1499,31 @@
                         class="user-menu-dropdown"
                         role="menu"
                     >
+                        <div class="theme-menu-section">
+                            <span class="theme-menu-label">Оформление</span>
+                            <form
+                                class="theme-menu-form"
+                                method="post"
+                                action="{% url 'accounts:set_theme' %}"
+                            >
+                                {% csrf_token %}
+                                <input type="hidden" name="theme" value="{{ alternate_ui_theme }}">
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button
+                                    class="user-menu-item theme-menu-item"
+                                    type="submit"
+                                    role="menuitem"
+                                >
+                                    <span class="theme-menu-icon" aria-hidden="true">
+                                        {% if ui_theme == "dark" %}☀{% else %}☾{% endif %}
+                                    </span>
+                                    <span>{{ alternate_ui_theme_label }}</span>
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="user-menu-separator"></div>
+
                         <a
                             class="user-menu-item"
                             href="{% url 'accounts:password_change' %}"

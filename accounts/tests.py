@@ -283,6 +283,115 @@ class AuthenticationViewsTests(TestCase):
             csrf_client.session,
         )
 
+
+class ThemePreferenceTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.department, _ = Department.objects.get_or_create(
+            code="bsa",
+            defaults={
+                "name": "BSA",
+                "is_active": True,
+            },
+        )
+        cls.role, _ = Role.objects.get_or_create(
+            code=Role.Code.EMPLOYEE,
+            defaults={"name": "Employee"},
+        )
+        cls.user = User.objects.create_user(
+            login="theme-user",
+            name="Theme User",
+            role=cls.role,
+            department=cls.department,
+            password="StrongThemePassword123!",
+        )
+
+    def test_default_theme_is_light(self):
+        response = self.client.get(reverse("accounts:login"))
+
+        self.assertContains(response, 'data-theme="light"')
+
+    def test_authenticated_user_can_select_dark_theme(self):
+        self.client.force_login(self.user)
+        task_list_url = reverse("tracker:task-list")
+
+        response = self.client.post(
+            reverse("accounts:set_theme"),
+            {
+                "theme": "dark",
+                "next": task_list_url,
+            },
+        )
+
+        self.assertRedirects(response, task_list_url)
+        self.assertEqual(self.client.session["ui_theme"], "dark")
+
+        page_response = self.client.get(task_list_url)
+        self.assertContains(page_response, 'data-theme="dark"')
+        self.assertContains(page_response, "Светлая тема")
+        self.assertContains(page_response, "tracker/theme.css")
+
+    def test_user_can_switch_back_to_light_theme(self):
+        self.client.force_login(self.user)
+        session = self.client.session
+        session["ui_theme"] = "dark"
+        session.save()
+
+        response = self.client.post(
+            reverse("accounts:set_theme"),
+            {"theme": "light"},
+        )
+
+        self.assertRedirects(response, reverse("tracker:task-list"))
+        self.assertEqual(self.client.session["ui_theme"], "light")
+
+    def test_invalid_theme_is_rejected(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("accounts:set_theme"),
+            {"theme": "sepia"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn("ui_theme", self.client.session)
+
+    def test_external_next_url_is_ignored(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("accounts:set_theme"),
+            {
+                "theme": "dark",
+                "next": "https://malicious.example.com/",
+            },
+        )
+
+        self.assertRedirects(response, reverse("tracker:task-list"))
+
+    def test_anonymous_user_cannot_change_theme(self):
+        response = self.client.post(
+            reverse("accounts:set_theme"),
+            {"theme": "dark"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("accounts:login"), response.url)
+        self.assertNotIn("ui_theme", self.client.session)
+
+    def test_set_theme_requires_csrf_token(self):
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.user)
+
+        response = csrf_client.post(
+            reverse("accounts:set_theme"),
+            {"theme": "dark"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertNotIn("ui_theme", csrf_client.session)
+
+
 class PasswordChangeViewTests(TestCase):
     @classmethod
     def setUpTestData(cls):

@@ -22,4 +22,5 @@ urlpatterns = [
         name="password_change",
     ),
     path("logout/", views.logout_view, name="logout"),
+    path("theme/", views.set_theme, name="set_theme"),
 ]

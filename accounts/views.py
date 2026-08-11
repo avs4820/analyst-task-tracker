@@ -1,8 +1,11 @@
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 
+from .context_processors import UI_THEME_SESSION_KEY, UI_THEMES
 from .forms import LoginForm
 
 
@@ -88,3 +91,25 @@ def logout_view(request):
         request,
         "accounts/logout.html",
     )
+
+
+@login_required
+@require_POST
+def set_theme(request):
+    theme = request.POST.get("theme")
+
+    if theme not in UI_THEMES:
+        return HttpResponseBadRequest("Unsupported theme.")
+
+    request.session[UI_THEME_SESSION_KEY] = theme
+
+    next_url = request.POST.get("next")
+
+    if next_url and url_has_allowed_host_and_scheme(
+        url=next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(next_url)
+
+    return redirect("tracker:task-list")
