@@ -321,6 +321,12 @@ html[data-theme="dark"] .status-hint,
 html[data-theme="dark"] .empty-value,
 html[data-theme="dark"] .weekly-status-button.empty .weekly-status-scroll,
 html[data-theme="dark"] .stream-multiselect-empty { color: #64748b; }
+html[data-theme="dark"] .status-missing-callout {
+    color: #fda4af;
+    border-color: #7f1d1d;
+    background: #3b1518;
+}
+html[data-theme="dark"] .status-missing-description { color: #fecdd3; }
 html[data-theme="dark"] .artifact-delete-button,
 html[data-theme="dark"] .modal-close,
 html[data-theme="dark"] .dialog-close { color: #94a3b8; }

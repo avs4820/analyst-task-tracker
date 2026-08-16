@@ -1211,6 +1211,10 @@ class TaskListViewTests(TestCase):
         self.assertContains(response, "Пресеты")
         self.assertContains(response, "Task List User")
         self.assertContains(response, "Новая")
+        self.assertContains(
+            response,
+            f"Создана: {self.task.created_at:%d.%m.%Y}",
+        )
 
     def test_employee_sees_assigned_task(self):
         self.client.force_login(self.user)
@@ -1591,6 +1595,53 @@ class TaskListViewTests(TestCase):
                 self.task,
                 self.sorting_task,
             ],
+        )
+
+    def test_tasks_are_sorted_by_creation_date_descending_by_default(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {"sort": "created"},
+        )
+
+        self.assertEqual(
+            list(response.context["tasks"]),
+            [
+                self.sorting_task,
+                self.task,
+            ],
+        )
+        self.assertEqual(
+            response.context["selected_sort"],
+            "created",
+        )
+        self.assertEqual(
+            response.context["sort_direction"],
+            "desc",
+        )
+
+    def test_tasks_can_be_sorted_by_creation_date_ascending(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {
+                "sort": "created",
+                "direction": "asc",
+            },
+        )
+
+        self.assertEqual(
+            list(response.context["tasks"]),
+            [
+                self.task,
+                self.sorting_task,
+            ],
+        )
+        self.assertEqual(
+            response.context["sort_direction"],
+            "asc",
         )
 
     def test_invalid_sort_value_falls_back_to_project(self):
@@ -1982,6 +2033,82 @@ class TaskListViewTests(TestCase):
         self.assertEqual(
             task.weekly_status_form.instance,
             current_status,
+        )
+
+    def test_non_final_tasks_without_current_status_show_warning(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list")
+        )
+
+        self.assertContains(
+            response,
+            '<span class="status-missing-callout">',
+            count=2,
+        )
+        self.assertContains(
+            response,
+            'class="status-text status-empty status-missing"',
+            count=2,
+        )
+        self.assertContains(
+            response,
+            "Статус не предоставлен",
+        )
+        self.assertContains(
+            response,
+            "Добавьте статус за текущую неделю.",
+        )
+
+    def test_final_tasks_without_current_status_keep_neutral_message(self):
+        self.task.status = self.done_status
+        self.task.save(update_fields=("status",))
+        self.sorting_task.status = self.cancelled_status
+        self.sorting_task.save(update_fields=("status",))
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list"),
+            {"show_done": "1"},
+        )
+
+        self.assertNotContains(
+            response,
+            '<span class="status-missing-callout">',
+        )
+        self.assertNotContains(
+            response,
+            'class="status-text status-empty status-missing"',
+        )
+        self.assertContains(
+            response,
+            "Статус за текущую неделю ещё не добавлен.",
+        )
+
+    @patch("tracker.views.timezone.localdate")
+    def test_task_with_current_status_does_not_show_warning(
+        self,
+        mocked_localdate,
+    ):
+        mocked_localdate.return_value = date(2026, 7, 30)
+        TaskWeeklyStatus.objects.create(
+            task=self.task,
+            week_start=date(2026, 7, 27),
+            text="Работа продолжается.",
+            updated_by=self.user,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("tracker:task-list")
+        )
+
+        self.assertContains(response, "Работа продолжается.")
+        self.assertContains(
+            response,
+            '<span class="status-missing-callout">',
+            count=1,
         )
 
     @patch("tracker.views.timezone.localdate")

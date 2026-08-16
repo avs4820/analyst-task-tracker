@@ -262,20 +262,29 @@ def task_list(request):
         "project": "project_stream__name",
         "number": "external_number",
         "summary": "summary",
+        "created": "created_at",
     }
 
     sort_value = request.GET.get("sort", "project")
-    sort_direction = request.GET.get("direction", "asc")
 
     if sort_value not in sort_fields:
         sort_value = "project"
+
+    default_sort_direction = (
+        "desc" if sort_value == "created" else "asc"
+    )
+    sort_direction = request.GET.get(
+        "direction",
+        default_sort_direction,
+    )
+
+    if sort_direction not in {"asc", "desc"}:
+        sort_direction = default_sort_direction
 
     sort_field = sort_fields[sort_value]
 
     if sort_direction == "desc":
         sort_field = f"-{sort_field}"
-    else:
-        sort_direction = "asc"
 
     tasks = tasks.order_by(sort_field, "id")
 

@@ -840,6 +840,12 @@
             letter-spacing: 0.03em;
         }
 
+        .task-created-date {
+            color: #6b7280;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
         .artifacts-section {
             padding-top: 14px;
             border-top: 1px solid #e5e7eb;
@@ -1199,6 +1205,54 @@
         .status-empty {
             color: #9ca3af;
             font-style: italic;
+        }
+
+        .status-text.status-missing {
+            white-space: normal;
+        }
+
+        .week-column.current .status-text.status-empty {
+            white-space: normal;
+        }
+
+        .status-missing-callout {
+            display: inline-flex;
+            align-items: flex-start;
+            gap: 9px;
+            padding: 11px 12px;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            color: #991b1b;
+            background: #fef2f2;
+            font-style: normal;
+            white-space: normal;
+        }
+
+        .status-missing-callout::before {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            flex: 0 0 18px;
+            margin-top: 2px;
+            border: 1.5px solid currentColor;
+            border-radius: 50%;
+            content: "!";
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .status-missing-title {
+            display: block;
+            font-weight: 700;
+        }
+
+        .status-missing-description {
+            display: block;
+            margin-top: 2px;
+            color: #7f1d1d;
         }
 
         .status-display {
@@ -1616,6 +1670,13 @@
                             >
                                 По описанию
                             </option>
+
+                            <option
+                                value="created"
+                                {% if selected_sort == "created" %}selected{% endif %}
+                            >
+                                По дате создания
+                            </option>
                         </select>
                     </div>
 
@@ -1776,6 +1837,10 @@
                                                         title="{{ task.department.name }}"
                                                     >
                                                         {{ task.department.code|upper }}
+                                                    </span>
+
+                                                    <span class="task-created-date">
+                                                        Создана: {{ task.created_at|date:"d.m.Y" }}
                                                     </span>
                                                 </div>
 
@@ -2016,6 +2081,7 @@
                                 <div
                                     class="week-column current"
                                     data-has-current-status="{% if task.current_weekly_status %}true{% else %}false{% endif %}"
+                                    data-task-is-final="{% if task.status.is_final %}true{% else %}false{% endif %}"
                                 >
                                     <div class="week-heading">
                                         <div>
@@ -2040,7 +2106,7 @@
                                         {% if task.current_weekly_status %}
                                             <p class="status-text">{{ task.current_weekly_status.text }}</p>
                                         {% else %}
-                                            <p class="status-text status-empty">Статус за текущую неделю ещё не добавлен.</p>
+                                            <p class="status-text status-empty{% if not task.status.is_final %} status-missing{% endif %}">{% if task.status.is_final %}Статус за текущую неделю ещё не добавлен.{% else %}<span class="status-missing-callout"><span><span class="status-missing-title">Статус не предоставлен</span><span class="status-missing-description">Добавьте статус за текущую неделю.</span></span></span>{% endif %}</p>
                                         {% endif %}
 
                                         <div class="status-actions status-display-actions">
@@ -2745,6 +2811,47 @@
             });
         }
 
+        function renderMissingCurrentStatus(column, isFinal) {
+            if (
+                !column
+                || column.dataset.hasCurrentStatus === "true"
+            ) {
+                return;
+            }
+
+            const statusParagraph = column.querySelector(
+                "[data-status-display] .status-text"
+            );
+
+            statusParagraph.classList.add("status-empty");
+            statusParagraph.classList.toggle(
+                "status-missing",
+                !isFinal
+            );
+
+            if (isFinal) {
+                statusParagraph.textContent =
+                    "Статус за текущую неделю ещё не добавлен.";
+                return;
+            }
+
+            const callout = document.createElement("span");
+            const textContainer = document.createElement("span");
+            const title = document.createElement("span");
+            const description = document.createElement("span");
+
+            callout.className = "status-missing-callout";
+            title.className = "status-missing-title";
+            title.textContent = "Статус не предоставлен";
+            description.className = "status-missing-description";
+            description.textContent =
+                "Добавьте статус за текущую неделю.";
+
+            textContainer.append(title, description);
+            callout.append(textContainer);
+            statusParagraph.replaceChildren(callout);
+        }
+
         document.querySelectorAll(
             "[data-task-status-form]"
         ).forEach((statusForm) => {
@@ -2817,6 +2924,18 @@
                     savedValue = String(data.status.id);
                     select.value = savedValue;
                     select.dataset.statusCode = data.status.code;
+
+                    const currentWeekColumn = statusForm
+                        .closest(".task-shell")
+                        .querySelector(".week-column.current");
+
+                    currentWeekColumn.dataset.taskIsFinal = String(
+                        data.status.is_final
+                    );
+                    renderMissingCurrentStatus(
+                        currentWeekColumn,
+                        data.status.is_final
+                    );
 
                     showStatusMessage(
                         "Сохранено",
@@ -3817,6 +3936,7 @@
 
                         statusParagraph.textContent = statusText;
                         statusParagraph.classList.remove("status-empty");
+                        statusParagraph.classList.remove("status-missing");
                         editButton.textContent = "Редактировать";
                         column.dataset.hasCurrentStatus = "true";
                         currentCopyButton.hidden = false;
@@ -4058,10 +4178,14 @@
             }
         });
 
-        taskSortSelect.addEventListener(
-            "change",
-            submitTaskListControls
-        );
+        taskSortSelect.addEventListener("change", () => {
+            if (taskSortSelect.value === "created") {
+                sortDirectionInput.value = "desc";
+                sortDirectionButton.textContent = "↓";
+            }
+
+            submitTaskListControls();
+        });
 
         taskListControls.querySelectorAll(
             'input[type="checkbox"]'
