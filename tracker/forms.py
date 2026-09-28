@@ -4,7 +4,15 @@ from django.db.models import Q
 
 from accounts.models import User
 
-from .models import Task, TaskArtifact, TaskStatus, TaskWeeklyStatus
+from .models import ProjectStream, Task, TaskArtifact, TaskStatus, TaskWeeklyStatus
+
+
+def get_selectable_project_streams(*, task=None):
+    condition = Q(is_active=True)
+    if task is not None and task.pk:
+        # An existing task may keep its current inactive project.
+        condition |= Q(pk=task.project_stream_id)
+    return ProjectStream.objects.filter(condition)
 
 
 def get_assignable_users(
@@ -105,6 +113,10 @@ class TaskForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.user = user
 
+        self.fields["project_stream"].queryset = get_selectable_project_streams(
+            task=self.instance,
+        )
+
         if user and user.role.code == "employee":
             self.fields.pop("assignee")
         elif user:
@@ -185,6 +197,8 @@ class TaskPopupCreateForm(forms.ModelForm):
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
+
+        self.fields["project_stream"].queryset = get_selectable_project_streams()
 
         if not user:
             return
@@ -305,6 +319,10 @@ class TaskInlineEditForm(forms.ModelForm):
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
+
+        self.fields["project_stream"].queryset = get_selectable_project_streams(
+            task=self.instance,
+        )
 
         can_change_department = (
             user
