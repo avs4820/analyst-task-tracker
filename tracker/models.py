@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class ProjectStream(models.Model):
@@ -95,10 +96,44 @@ class TaskStatus(models.Model):
         return self.name
 
 
+class TaskQuerySet(models.QuerySet):
+    def archive(self, user):
+        return self.filter(archived_at__isnull=True).update(
+            archived_at=timezone.now(), archived_by=user,
+        )
+
+    def restore(self):
+        return self.filter(archived_at__isnull=False).update(
+            archived_at=None, archived_by=None,
+        )
+
+
+class ActiveTaskManager(models.Manager.from_queryset(TaskQuerySet)):
+    def get_queryset(self):
+        return super().get_queryset().filter(archived_at__isnull=True)
+
+
 class Task(models.Model):
     """
     Задача, которую ведёт аналитик.
     """
+
+    objects = ActiveTaskManager()
+    all_objects = TaskQuerySet.as_manager()
+
+    archived_at = models.DateTimeField(
+        null=True, blank=True, editable=False, db_index=True,
+        verbose_name="Дата архивирования",
+    )
+    archived_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, editable=False,
+        on_delete=models.PROTECT, related_name="archived_tasks",
+        verbose_name="Архивировал",
+    )
+
+    @property
+    def is_archived(self):
+        return self.archived_at is not None
 
     project_stream = models.ForeignKey(
         ProjectStream,
@@ -167,6 +202,8 @@ class Task(models.Model):
 
     class Meta:
         verbose_name = "Задача"
+        base_manager_name = "all_objects"
+        default_manager_name = "objects"
         verbose_name_plural = "Задачи"
         ordering = ["-created_at"]
 
