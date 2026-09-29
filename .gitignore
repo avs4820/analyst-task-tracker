@@ -6,3 +6,6 @@ db.sqlite3
 .vscode/
 .idea/
 staticfiles/
+/backups/
+/outputs/
+/.prod_db_backup_credentials.json

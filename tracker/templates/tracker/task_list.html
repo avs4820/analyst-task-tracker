@@ -1697,6 +1697,20 @@
                         {% if sort_direction == "desc" %}↓{% else %}↑{% endif %}
                     </button>
 
+                    {% if show_only_mine_toggle %}
+                    <input type="hidden" name="only_mine" value="0">
+                    <label class="quick-filter">
+                        <input
+                            type="checkbox"
+                            name="only_mine"
+                            value="1"
+                            {% if only_mine %}checked{% endif %}
+                        >
+                        <span class="quick-filter-switch"></span>
+                        <span class="quick-filter-text">Только свои</span>
+                    </label>
+                    {% endif %}
+
                     <label class="quick-filter">
                         <input
                             type="checkbox"
@@ -2234,7 +2248,11 @@
                 </section>
             {% else %}
                 <div class="empty-message">
-                    Задач пока нет.
+                    {% if only_mine %}
+                        Нет задач по выбранным условиям. Выключите «Только свои», чтобы увидеть задачи других исполнителей.
+                    {% else %}
+                        Задач пока нет.
+                    {% endif %}
                 </div>
             {% endif %}
         </div>
@@ -3976,6 +3994,10 @@
             'input[name="show_cancelled"]'
         );
 
+        const onlyMineCheckbox = taskListControls.querySelector(
+            'input[type="checkbox"][name="only_mine"]'
+        );
+
         const taskListStateKey =
             "tracker-task-list-state:"
             + window.location.pathname
@@ -4034,6 +4056,7 @@
                 sort: taskSortSelect.value,
                 direction: sortDirectionInput.value,
                 showDone: showDoneCheckbox.checked,
+                onlyMine: onlyMineCheckbox ? onlyMineCheckbox.checked : false,
                 showCancelled: showCancelledCheckbox.checked,
                 search: searchInput
                     ? searchInput.value.trim()
@@ -4054,6 +4077,9 @@
             const url = new URL(window.location.href);
 
             url.searchParams.set("sort", state.sort);
+            if (onlyMineCheckbox) {
+                url.searchParams.set("only_mine", state.onlyMine ? "1" : "0");
+            }
             url.searchParams.set(
                 "direction",
                 state.direction
@@ -4103,6 +4129,13 @@
                         ? "desc"
                         : "asc",
                 showDone: Boolean(savedState.showDone),
+                onlyMine: onlyMineCheckbox
+                    ? (new URL(window.location.href).searchParams.has("only_mine")
+                        ? onlyMineCheckbox.checked
+                        : (typeof savedState.onlyMine === "boolean"
+                            ? savedState.onlyMine
+                            : onlyMineCheckbox.checked))
+                    : false,
                 showCancelled: Boolean(
                     savedState.showCancelled
                 ),
@@ -4119,6 +4152,8 @@
                     !== normalizedState.direction
                 || showDoneCheckbox.checked
                     !== normalizedState.showDone
+                || (onlyMineCheckbox && onlyMineCheckbox.checked
+                    !== normalizedState.onlyMine)
                 || showCancelledCheckbox.checked
                     !== normalizedState.showCancelled
                 || (searchInput ? searchInput.value : "")
@@ -4133,6 +4168,7 @@
                 return;
             }
 
+            saveTaskListState();
         }
 
         function submitTaskListControls() {
@@ -4144,6 +4180,7 @@
             url.searchParams.delete("sort");
             url.searchParams.delete("direction");
             url.searchParams.delete("show_done");
+            url.searchParams.delete("only_mine");
             url.searchParams.delete("show_cancelled");
             url.searchParams.delete("search");
             url.searchParams.delete("page");

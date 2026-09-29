@@ -88,14 +88,14 @@ class TaskArchivingTests(TestCase):
             self.client.force_login(user)
             with self.subTest(role=user.login):
                 for name in ("task-list", "status-summary", "dashboard"):
-                    response = self.client.get(reverse(f"tracker:{name}"), {"show_done": "1", "show_cancelled": "1", "show_final": "1"})
+                    response = self.client.get(reverse(f"tracker:{name}"), {"show_done": "1", "show_cancelled": "1", "show_final": "1", "only_mine": "0"})
                     self.assertEqual(response.status_code, 200)
                     self.assertNotContains(response, self.task.summary)
                     self.assertNotContains(response, self.artifact.name)
                     self.assertNotContains(response, self.weekly.text)
-                listing = self.client.get(reverse("tracker:task-list"))
+                listing = self.client.get(reverse("tracker:task-list"), {"only_mine": "0"})
                 self.assertEqual(listing.context["page_obj"].paginator.count, 1)
-                search = self.client.get(reverse("tracker:task-list"), {"search": "ARC-1"})
+                search = self.client.get(reverse("tracker:task-list"), {"search": "ARC-1", "only_mine": "0"})
                 self.assertEqual(search.context["page_obj"].paginator.count, 0)
                 response = self.client.get(reverse("tracker:status-summary"), {"format": "xlsx", "show_final": "1"})
                 self.assertEqual(response.status_code, 200)

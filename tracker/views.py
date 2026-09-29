@@ -230,6 +230,18 @@ def task_list(request):
         else:
             tasks = tasks.none()
 
+    show_only_mine_toggle = request.user.role.code in {"manager", "head"}
+    only_mine_value = request.GET.get("only_mine")
+    only_mine = show_only_mine_toggle and (
+        only_mine_value == "1"
+        or (
+            only_mine_value not in {"0", "1"}
+            and request.user.role.code == "manager"
+        )
+    )
+    if only_mine:
+        tasks = tasks.filter(assignee=request.user)
+
     show_done = request.GET.get("show_done") == "1"
     show_cancelled = request.GET.get("show_cancelled") == "1"
 
@@ -443,6 +455,8 @@ def task_list(request):
             "show_done": show_done,
             "show_cancelled": show_cancelled,
             "page_obj": page_obj,
+            "show_only_mine_toggle": show_only_mine_toggle,
+            "only_mine": only_mine,
             "pagination_query": pagination_query,
             "create_form": create_form,
             "open_create_modal": open_create_modal,

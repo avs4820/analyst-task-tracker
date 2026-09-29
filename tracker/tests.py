@@ -1263,7 +1263,7 @@ class TaskListViewTests(TestCase):
         self.client.force_login(self.manager)
 
         response = self.client.get(
-            reverse("tracker:task-list")
+            reverse("tracker:task-list"), {"only_mine": "0"}
         )
 
         self.assertContains(
@@ -1788,7 +1788,7 @@ class TaskListViewTests(TestCase):
 
         response = self.client.get(
             reverse("tracker:task-list"),
-            {"search": "Second Task List"},
+            {"search": "Second Task List", "only_mine": "0"},
         )
 
         self.assertEqual(
